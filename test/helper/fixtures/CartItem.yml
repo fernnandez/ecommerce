@@ -1,0 +1,44 @@
+entity: CartItem
+items:
+  notebookItemJohn:
+    cart: '@activeCartJohn'
+    product: '@singleProductNotebook'
+    quantity: 1
+    price: 3499.99
+    periodicity: null
+  smartphoneItemMary:
+    cart: '@closedCartMary'
+    product: '@singleProductSmartphone'
+    quantity: 1
+    price: 1899.90
+    periodicity: null
+  gamingMouseItemMary:
+    cart: '@closedCartMary'
+    product: '@singleProductGamingMouse'
+    quantity: 2
+    price: 199.99
+    periodicity: null
+  monthlySubscriptionItemJohn:
+    cart: '@activeCartJohn'
+    product: '@monthlySubscriptionPremium'
+    quantity: 1
+    price: 49.90
+    periodicity: 'monthly'
+  notebookItemForPendingOrderJohn:
+    cart: '@closedCartForPendingOrderJohn'
+    product: '@singleProductNotebook'
+    quantity: 1
+    price: 3499.99
+    periodicity: null
+  monthlySubscriptionItemForPendingOrderJohn:
+    cart: '@closedCartForPendingOrderJohn'
+    product: '@monthlySubscriptionPremium'
+    quantity: 1
+    price: 49.90
+    periodicity: 'monthly'
+  smartphoneItemForCancelledOrderPeter:
+    cart: '@closedCartForCancelledOrderPeter'
+    product: '@singleProductSmartphone'
+    quantity: 1
+    price: 1899.90
+    periodicity: null

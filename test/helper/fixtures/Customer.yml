@@ -1,0 +1,14 @@
+entity: Customer
+items:
+  premiumCustomerJohn:
+    phone: '+5511999999999'
+    identificationNumber: '12345678901'
+    user: '@userPremiumCustomerJohn'
+  regularCustomerMary:
+    phone: '+5511888888888'
+    identificationNumber: '98765432109'
+    user: '@userRegularCustomerMary'
+  newCustomerPeter:
+    phone: '+5511777777777'
+    identificationNumber: '11122233344'
+    user: '@userNewCustomerPeter'

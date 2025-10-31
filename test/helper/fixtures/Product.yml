@@ -1,0 +1,32 @@
+entity: Product
+items:
+  singleProductNotebook:
+    name: 'Notebook Dell Inspiron'
+    type: 'single'
+    price: 3499.99
+    periodicity: null
+  singleProductSmartphone:
+    name: 'Smartphone Samsung Galaxy'
+    type: 'single'
+    price: 1899.90
+    periodicity: null
+  monthlySubscriptionPremium:
+    name: 'Premium Monthly Plan'
+    type: 'subscription'
+    price: 49.90
+    periodicity: 'monthly'
+  quarterlySubscriptionPro:
+    name: 'Pro Quarterly Plan'
+    type: 'subscription'
+    price: 129.90
+    periodicity: 'quarterly'
+  yearlySubscriptionEnterprise:
+    name: 'Enterprise Yearly Plan'
+    type: 'subscription'
+    price: 499.90
+    periodicity: 'yearly'
+  singleProductGamingMouse:
+    name: 'RGB Gaming Mouse'
+    type: 'single'
+    price: 199.99
+    periodicity: null

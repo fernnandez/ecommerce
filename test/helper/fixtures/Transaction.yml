@@ -1,0 +1,26 @@
+entity: Transaction
+items:
+  paidTransactionMary:
+    transactionId: 'TXN-001-MARY-CARD'
+    status: 'paid'
+    amount: 5399.89
+    currency: 'BRL'
+    message: 'Payment completed successfully'
+    processingTime: 500
+    order: '@confirmedOrderMary'
+  processingTransactionJohn:
+    transactionId: 'TXN-002-JOHN-PIX'
+    status: 'processing'
+    amount: 3549.89
+    currency: 'BRL'
+    message: 'Waiting for confirmation'
+    processingTime: 1200
+    order: '@pendingOrderJohn'
+  refusedTransactionPeter:
+    transactionId: 'TXN-003-PETER-BANK'
+    status: 'refused'
+    amount: 1899.90
+    currency: 'BRL'
+    message: 'Payment refused by bank'
+    processingTime: 300
+    order: '@cancelledOrderPeter'

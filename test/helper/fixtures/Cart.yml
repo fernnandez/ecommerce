@@ -1,0 +1,22 @@
+entity: Cart
+items:
+  activeCartJohn:
+    customer: '@premiumCustomerJohn'
+    status: 'open'
+    total: 0
+  closedCartMary:
+    customer: '@regularCustomerMary'
+    status: 'closed'
+    total: 5399.89
+  closedCartForPendingOrderJohn:
+    customer: '@premiumCustomerJohn'
+    status: 'closed'
+    total: 3549.89
+  closedCartForCancelledOrderPeter:
+    customer: '@newCustomerPeter'
+    status: 'closed'
+    total: 1899.90
+  emptyCartPeter:
+    customer: '@newCustomerPeter'
+    status: 'open'
+    total: 0

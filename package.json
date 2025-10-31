@@ -18,6 +18,17 @@
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
+    "db:reload:dev": "ts-node -r tsconfig-paths/register ./node_modules/typeorm/cli.js schema:drop -d src/infra/database/datasource.ts && ts-node -r tsconfig-paths/register ./node_modules/typeorm/cli.js schema:sync -d src/infra/database/datasource.ts && npm run fixtures:load",
+    "db:reload:test": "NODE_ENV=test ts-node -r tsconfig-paths/register ./node_modules/typeorm/cli.js schema:drop -d src/infra/database/datasource.ts && NODE_ENV=test ts-node -r tsconfig-paths/register ./node_modules/typeorm/cli.js schema:sync -d src/infra/database/datasource.ts && npm run fixtures:load:test",
+    "fixtures:load": "npx fixtures load test/helper/fixtures -d src/infra/database/datasource.ts --require ts-node/register --require tsconfig-paths/register --sync",
+    "fixtures:load:dev": "NODE_ENV=development npx fixtures load test/helper/fixtures -d src/infra/database/datasource.ts --require ts-node/register --require tsconfig-paths/register --sync",
+    "fixtures:load:test": "NODE_ENV=test npx fixtures load test/helper/fixtures -d src/infra/database/datasource.ts --require ts-node/register --require tsconfig-paths/register --sync",
+    "fixtures:reset": "npm run db:reload:dev && npm run fixtures:load",
+    "fixtures:reset:dev": "npm run db:reload:dev && npm run fixtures:load:dev",
+    "fixtures:reset:test": "npm run db:reload:test && npm run fixtures:load:test",
+    "docker:test:up": "docker-compose -f docker-compose-test.yml up -d",
+    "docker:test:down": "docker-compose -f docker-compose-test.yml down",
+    "docker:test:logs": "docker-compose -f docker-compose-test.yml logs -f",
     "prepare": "husky"
   },
   "dependencies": {
@@ -69,23 +80,18 @@
     "ts-loader": "^9.5.2",
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",
+    "typeorm-fixtures-cli": "^4.1.0",
     "typescript": "^5.7.3",
     "typescript-eslint": "^8.20.0"
   },
   "jest": {
-    "moduleFileExtensions": [
-      "js",
-      "json",
-      "ts"
-    ],
+    "moduleFileExtensions": ["js", "json", "ts"],
     "rootDir": "src",
     "testRegex": ".*\\.spec\\.ts$",
     "transform": {
       "^.+\\.(t|j)s$": "ts-jest"
     },
-    "collectCoverageFrom": [
-      "**/*.(t|j)s"
-    ],
+    "collectCoverageFrom": ["**/*.(t|j)s"],
     "coverageDirectory": "../coverage",
     "testEnvironment": "node"
   }

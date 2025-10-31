@@ -1,0 +1,23 @@
+entity: Order
+items:
+  confirmedOrderMary:
+    total: 5399.89
+    status: 'confirmed'
+    paymentMethod: 'card'
+    origin: 'cart'
+    customer: '@regularCustomerMary'
+    cart: '@closedCartMary'
+  pendingOrderJohn:
+    total: 3549.89
+    status: 'pending'
+    paymentMethod: 'pix'
+    origin: 'cart'
+    customer: '@premiumCustomerJohn'
+    cart: '@closedCartForPendingOrderJohn'
+  cancelledOrderPeter:
+    total: 1899.90
+    status: 'cancelled'
+    paymentMethod: 'slipbank'
+    origin: 'cart'
+    customer: '@newCustomerPeter'
+    cart: '@closedCartForCancelledOrderPeter'
