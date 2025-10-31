@@ -3,6 +3,9 @@ import { CustomerService } from '@domain/customer/customer.service';
 import { Customer } from '@domain/customer/entities/customer.entity';
 import { Order, OrderStatus, PaymentMethod } from '@domain/order/entities/order.entity';
 import { Transaction, TransactionStatus } from '@domain/order/entities/transaction.entity';
+import { Periodicity as ProductPeriodicity, ProductType } from '@domain/product/entities/product.entity';
+import { Periodicity as SubscriptionPeriodicity } from '@domain/subscription/entities/subscription.entity';
+import { SubscriptionService } from '@domain/subscription/subscription.service';
 import {
   CHARGE_PROVIDER_TOKEN,
   ChargeRequest,
@@ -29,10 +32,15 @@ export class OrderService {
     private readonly cartService: CartService,
     @Inject(CHARGE_PROVIDER_TOKEN)
     private readonly chargeProvider: IChargeProvider,
+    private readonly subscriptionService: SubscriptionService,
   ) {}
 
   @Transactional()
-  async createFromCart(customerId: string, cartId: string, paymentMethod: PaymentMethod): Promise<Order> {
+  async createOrder(
+    customerId: string,
+    cartId: string,
+    paymentMethod: PaymentMethod,
+  ): Promise<{ order: Order; subscriptionIds: string[] }> {
     const customer = await this.customerRepository.findOne({
       where: { id: customerId },
       relations: ['user'],
@@ -84,16 +92,16 @@ export class OrderService {
 
     const chargeResponse = await this.chargeProvider.charge(chargeRequest);
 
-    let orderStatus: OrderStatus;
-    if (chargeResponse.status === ChargeStatus.PAID) {
-      orderStatus = OrderStatus.CONFIRMED;
-    } else if (chargeResponse.status === ChargeStatus.REFUSED || chargeResponse.status === ChargeStatus.FAILED) {
-      orderStatus = OrderStatus.FAILED;
-    } else {
-      orderStatus = OrderStatus.PENDING;
-    }
+    const statusMapping: Record<ChargeStatus, OrderStatus> = {
+      [ChargeStatus.PAID]: OrderStatus.CONFIRMED,
+      [ChargeStatus.REFUSED]: OrderStatus.FAILED,
+      [ChargeStatus.FAILED]: OrderStatus.FAILED,
+      [ChargeStatus.CREATED]: OrderStatus.PENDING,
+      [ChargeStatus.PROCESSING]: OrderStatus.PENDING,
+    };
 
-    savedOrder.status = orderStatus;
+    savedOrder.status = statusMapping[chargeResponse.status];
+
     const updatedOrder = await this.orderRepository.save(savedOrder);
 
     const transaction = this.transactionRepository.create({
@@ -106,9 +114,46 @@ export class OrderService {
       order: updatedOrder,
     });
 
-    await this.transactionRepository.save(transaction);
+    const savedTransaction = await this.transactionRepository.save(transaction);
 
-    return updatedOrder;
+    const hasSubscriptionProducts = cart.items?.some(item => item.product?.type === ProductType.SUBSCRIPTION);
+
+    const subscriptionIds: string[] = [];
+    const shouldCreateSubscriptions =
+      hasSubscriptionProducts &&
+      cart.items &&
+      (chargeResponse.status === ChargeStatus.PAID ||
+        chargeResponse.status === ChargeStatus.CREATED ||
+        chargeResponse.status === ChargeStatus.PROCESSING);
+
+    if (shouldCreateSubscriptions) {
+      const subscriptionItems = cart.items.filter(
+        item => item.product?.type === ProductType.SUBSCRIPTION && item.product.periodicity,
+      );
+
+      // TODO: analisar processamento async aquiÞ
+      for (const item of subscriptionItems) {
+        if (item.product && item.product.periodicity) {
+          try {
+            const subscriptionPeriodicity = this.mapProductPeriodicityToSubscriptionPeriodicity(
+              item.product.periodicity,
+            );
+            const subscription = await this.subscriptionService.create(
+              customer,
+              item.product,
+              Number(item.price),
+              subscriptionPeriodicity,
+              savedTransaction,
+            );
+            subscriptionIds.push(subscription.id);
+          } catch (error) {
+            console.warn(`Failed to create subscription for product ${item.product.id}: ${error.message}`);
+          }
+        }
+      }
+    }
+
+    return { order: updatedOrder, subscriptionIds };
   }
 
   async findOneOrFail(id: string): Promise<Order> {
@@ -150,5 +195,17 @@ export class OrderService {
     };
 
     return mapping[chargeStatus];
+  }
+
+  private mapProductPeriodicityToSubscriptionPeriodicity(
+    productPeriodicity: ProductPeriodicity,
+  ): SubscriptionPeriodicity {
+    const mapping: Record<ProductPeriodicity, SubscriptionPeriodicity> = {
+      [ProductPeriodicity.MONTHLY]: SubscriptionPeriodicity.MONTHLY,
+      [ProductPeriodicity.QUARTERLY]: SubscriptionPeriodicity.QUARTERLY,
+      [ProductPeriodicity.YEARLY]: SubscriptionPeriodicity.YEARLY,
+    };
+
+    return mapping[productPeriodicity];
   }
 }

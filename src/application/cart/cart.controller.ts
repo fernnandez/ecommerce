@@ -75,7 +75,11 @@ export class CartController {
     if (!user.customer) {
       throw new NotFoundException('Customer not found for user');
     }
-    return await this.cartService.addItem(user.customer.id, addItemDto.productId, addItemDto.quantity || 1);
+    return await this.cartService.addItem(
+      user.customer.id,
+      addItemDto.productId,
+      addItemDto.quantity || 1,
+    );
   }
 
   @Delete('items/:itemId')

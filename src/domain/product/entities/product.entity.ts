@@ -5,6 +5,12 @@ export enum ProductType {
   SUBSCRIPTION = 'subscription',
 }
 
+export enum Periodicity {
+  MONTHLY = 'monthly',
+  QUARTERLY = 'quarterly',
+  YEARLY = 'yearly',
+}
+
 @Entity('product')
 export class Product {
   @PrimaryGeneratedColumn('uuid')
@@ -22,6 +28,13 @@ export class Product {
 
   @Column({ type: 'decimal', precision: 10, scale: 2 })
   price: number;
+
+  @Column({
+    type: 'enum',
+    enum: Periodicity,
+    nullable: true,
+  })
+  periodicity: Periodicity | null;
 
   @CreateDateColumn()
   createdAt: Date;

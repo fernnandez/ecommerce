@@ -1,7 +1,9 @@
 import { CartItem } from '@domain/cart/entities/cart-item.entity';
+import { Periodicity } from '@domain/product/entities/product.entity';
 import { Cart, CartStatus } from '@domain/cart/entities/cart.entity';
 import { CustomerService } from '@domain/customer/customer.service';
-import { PaymentMethod } from '@domain/order/entities/order.entity';
+import { OrderStatus, PaymentMethod } from '@domain/order/entities/order.entity';
+import { Transaction } from '@domain/order/entities/transaction.entity';
 import { OrderService } from '@domain/order/services/order.service';
 import { ProductService } from '@domain/product/product.service';
 import { BadRequestException, Inject, Injectable, NotFoundException, forwardRef } from '@nestjs/common';
@@ -30,6 +32,11 @@ export interface CartItemResponseDto {
 
 export interface CheckoutResponseDto {
   orderId: string;
+  orderStatus: OrderStatus;
+  orderTotal: number;
+  paymentMethod: PaymentMethod;
+  transactions: Transaction[];
+  subscriptionIds?: string[];
 }
 
 @Injectable()
@@ -124,10 +131,28 @@ export class CartService {
     });
   }
 
-  async addItem(customerId: string, productId: string, quantity: number = 1): Promise<CartResponseDto> {
+  async addItem(
+    customerId: string,
+    productId: string,
+    quantity: number = 1,
+  ): Promise<CartResponseDto> {
     const cart = await this.getOrCreateOpenCartEntity(customerId);
 
     const product = await this.productService.findOneOrFail(productId);
+
+    if (product.type === 'subscription' && !product.periodicity) {
+      throw new BadRequestException(
+        'Product subscription must have periodicity defined. Please configure periodicity for this product.',
+      );
+    }
+
+    if (product.type === 'single' && product.periodicity) {
+      throw new BadRequestException('Single products cannot have periodicity');
+    }
+
+    if (product.type === 'subscription' && quantity > 1) {
+      throw new BadRequestException('Subscription products can only have quantity of 1');
+    }
 
     const existingItem = await this.cartItemRepository.findOne({
       where: {
@@ -137,14 +162,21 @@ export class CartService {
     });
 
     if (existingItem) {
+      if (product.type === 'subscription') {
+        throw new BadRequestException(
+          'Subscription product already exists in cart. Each subscription can only be added once.',
+        );
+      }
+
       existingItem.quantity += quantity;
       await this.cartItemRepository.save(existingItem);
     } else {
       const cartItem = this.cartItemRepository.create({
         cart,
         product,
-        quantity,
+        quantity: product.type === 'subscription' ? 1 : quantity,
         price: product.price,
+        periodicity: product.periodicity,
       });
       await this.cartItemRepository.save(cartItem);
     }
@@ -280,10 +312,18 @@ export class CartService {
       throw new NotFoundException('Cart not found or does not belong to customer');
     }
 
-    const order = await this.orderService.createFromCart(customerId, cartId, paymentMethod);
+    const { order, subscriptionIds } = await this.orderService.createOrder(customerId, cartId, paymentMethod);
+
+    // Carrega transactions do order
+    const orderWithTransactions = await this.orderService.findOneOrFail(order.id);
 
     return {
       orderId: order.id,
+      orderStatus: order.status,
+      orderTotal: Number(order.total),
+      paymentMethod: order.paymentMethod,
+      transactions: orderWithTransactions.transactions || [],
+      subscriptionIds: subscriptionIds.length > 0 ? subscriptionIds : undefined,
     };
   }
 }

@@ -1,4 +1,4 @@
-import { Product } from '@domain/product/entities/product.entity';
+import { Periodicity, Product } from '@domain/product/entities/product.entity';
 import {
   Column,
   CreateDateColumn,
@@ -29,6 +29,13 @@ export class CartItem {
 
   @Column({ type: 'decimal', precision: 10, scale: 2 })
   price: number;
+
+  @Column({
+    type: 'enum',
+    enum: Periodicity,
+    nullable: true,
+  })
+  periodicity: Periodicity | null;
 
   @CreateDateColumn()
   createdAt: Date;
