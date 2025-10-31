@@ -6,4 +6,8 @@ export default Joi.object({
   PORT: Joi.number(),
   REDIS_HOST: Joi.string().required(),
   REDIS_PORT: Joi.string().required(),
+  JWT_SECRET: Joi.string().required(),
+  JWT_EXPIRES_IN: Joi.string().default('24h'),
+  JWT_REFRESH_SECRET: Joi.string().optional(),
+  JWT_REFRESH_EXPIRES_IN: Joi.string().default('7d'),
 });
