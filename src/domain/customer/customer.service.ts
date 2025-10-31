@@ -2,7 +2,7 @@ import { Customer } from '@domain/customer/entities/customer.entity';
 import { Identification } from '@domain/customer/value-objects/identification.vo';
 import { UserRole } from '@domain/user/entities/user.entity';
 import { UserService } from '@domain/user/user.service';
-import { ConflictException, Injectable } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Transactional } from 'typeorm-transactional';
@@ -49,5 +49,17 @@ export class CustomerService {
     });
 
     return await this.customerRepository.save(customer);
+  }
+
+  async findOneOrFail(id: string): Promise<Customer> {
+    const customer = await this.customerRepository.findOne({
+      where: { id },
+    });
+
+    if (!customer) {
+      throw new NotFoundException('Customer not found');
+    }
+
+    return customer;
   }
 }
