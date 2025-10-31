@@ -44,7 +44,6 @@ export class SubscriptionService {
     // Cria o subscriptionId único
     const subscriptionId = this.generateSubscriptionId();
 
-    
     const initialStatus = this.mapTransactionStatusToSubscriptionStatus(initialTransaction.status);
 
     const subscription = this.subscriptionRepository.create({
@@ -116,6 +115,62 @@ export class SubscriptionService {
     return await this.subscriptionRepository.save(subscription);
   }
 
+  async updatePeriodStatus(subscriptionId: string, transactionId: string, status: PeriodStatus): Promise<void> {
+    const subscription = await this.findOneOrFail(subscriptionId);
+
+    if (subscription.periods && subscription.periods.length > 0) {
+      const period = subscription.periods.find(p => p.transaction?.transactionId === transactionId);
+      if (period) {
+        period.status = status;
+        await this.subscriptionPeriodRepository.save(period);
+      }
+    }
+  }
+
+  async findAndUpdateSubscriptionByTransaction(
+    transactionId: string,
+    transactionStatus: TransactionStatus,
+  ): Promise<{ subscriptionId: string; periodStatus: PeriodStatus; subscriptionStatus: SubscriptionStatus } | null> {
+    const period = await this.subscriptionPeriodRepository.findOne({
+      where: { transaction: { transactionId } },
+      relations: ['subscription', 'transaction'],
+    });
+
+    if (!period) {
+      return null;
+    }
+
+    const periodStatusMapping: Record<TransactionStatus, PeriodStatus> = {
+      [TransactionStatus.PAID]: PeriodStatus.PAID,
+      [TransactionStatus.FAILED]: PeriodStatus.FAILED,
+      [TransactionStatus.REFUSED]: PeriodStatus.FAILED,
+      [TransactionStatus.CREATED]: PeriodStatus.PENDING,
+      [TransactionStatus.PROCESSING]: PeriodStatus.PENDING,
+    };
+
+    const subscriptionStatusMapping: Record<TransactionStatus, SubscriptionStatus> = {
+      [TransactionStatus.PAID]: SubscriptionStatus.ACTIVE,
+      [TransactionStatus.FAILED]: SubscriptionStatus.PAST_DUE,
+      [TransactionStatus.REFUSED]: SubscriptionStatus.PAST_DUE,
+      [TransactionStatus.CREATED]: SubscriptionStatus.PENDING,
+      [TransactionStatus.PROCESSING]: SubscriptionStatus.PENDING,
+    };
+
+    const periodStatus = periodStatusMapping[transactionStatus];
+    const subscriptionStatus = subscriptionStatusMapping[transactionStatus];
+
+    period.status = periodStatus;
+    await this.subscriptionPeriodRepository.save(period);
+
+    await this.updateStatus(period.subscription.id, subscriptionStatus);
+
+    return {
+      subscriptionId: period.subscription.id,
+      periodStatus,
+      subscriptionStatus,
+    };
+  }
+
   async findOneOrFail(id: string): Promise<Subscription> {
     const subscription = await this.subscriptionRepository.findOne({
       where: { id, deletedAt: null },
@@ -138,7 +193,7 @@ export class SubscriptionService {
         status: SubscriptionStatus.ACTIVE,
         deletedAt: null,
       },
-      relations: ['customer', 'product', 'periods'],
+      relations: ['customer', 'customer.user', 'product', 'periods'],
     });
 
     return subscriptions.filter(sub => {

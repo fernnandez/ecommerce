@@ -26,6 +26,11 @@ export enum PaymentMethod {
   PIX = 'pix',
 }
 
+export enum OrderOrigin {
+  CART = 'cart',
+  SUBSCRIPTION = 'subscription',
+}
+
 @Entity('order')
 export class Order {
   @PrimaryGeneratedColumn('uuid')
@@ -46,6 +51,13 @@ export class Order {
     enum: PaymentMethod,
   })
   paymentMethod: PaymentMethod;
+
+  @Column({
+    type: 'enum',
+    enum: OrderOrigin,
+    default: OrderOrigin.CART,
+  })
+  origin: OrderOrigin;
 
   @ManyToOne(() => Customer, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'customer_id' })

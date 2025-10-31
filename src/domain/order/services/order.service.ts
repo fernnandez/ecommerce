@@ -1,7 +1,7 @@
 import { CartService } from '@domain/cart/cart.service';
 import { CustomerService } from '@domain/customer/customer.service';
 import { Customer } from '@domain/customer/entities/customer.entity';
-import { Order, OrderStatus, PaymentMethod } from '@domain/order/entities/order.entity';
+import { Order, OrderOrigin, OrderStatus, PaymentMethod } from '@domain/order/entities/order.entity';
 import { Transaction, TransactionStatus } from '@domain/order/entities/transaction.entity';
 import { Periodicity as ProductPeriodicity, ProductType } from '@domain/product/entities/product.entity';
 import { Periodicity as SubscriptionPeriodicity } from '@domain/subscription/entities/subscription.entity';
@@ -69,6 +69,7 @@ export class OrderService {
       order.status = OrderStatus.PENDING;
       order.paymentMethod = paymentMethod;
       order.total = cart.total;
+      order.origin = OrderOrigin.CART;
     } else {
       order = this.orderRepository.create({
         customer,
@@ -76,6 +77,7 @@ export class OrderService {
         total: cart.total,
         status: OrderStatus.PENDING,
         paymentMethod,
+        origin: OrderOrigin.CART,
       });
     }
 
@@ -173,6 +175,92 @@ export class OrderService {
     const order = await this.findOneOrFail(id);
     order.status = status;
     return await this.orderRepository.save(order);
+  }
+
+  async findTransactionByTransactionId(transactionId: string): Promise<Transaction | null> {
+    return await this.transactionRepository.findOne({
+      where: { transactionId },
+      relations: ['order'],
+    });
+  }
+
+  async updateTransactionStatus(transactionId: string, status: TransactionStatus): Promise<Transaction> {
+    const transaction = await this.transactionRepository.findOne({
+      where: { transactionId },
+    });
+
+    if (!transaction) {
+      throw new NotFoundException(`Transaction ${transactionId} not found`);
+    }
+
+    transaction.status = status;
+    const savedTransaction = await this.transactionRepository.save(transaction);
+
+    await this.subscriptionService.findAndUpdateSubscriptionByTransaction(transactionId, status);
+
+    return savedTransaction;
+  }
+
+  /**
+   * Cria um Order e Transaction para cobrança recorrente
+   * Usado pelo motor de cobrança recorrente
+   */
+  @Transactional()
+  async createRecurringOrder(
+    customerId: string,
+    amount: number,
+    paymentMethod: PaymentMethod,
+    chargeResponse: {
+      transactionId: string;
+      status: any;
+      message?: string;
+      processingTime: number;
+    },
+  ): Promise<{ order: Order; transaction: Transaction }> {
+    const customer = await this.customerRepository.findOne({
+      where: { id: customerId },
+      relations: ['user'],
+    });
+
+    if (!customer) {
+      throw new NotFoundException('Customer not found');
+    }
+
+    // Mapeia o status da cobrança para o status da order
+    let orderStatus: OrderStatus;
+    if (chargeResponse.status === ChargeStatus.PAID) {
+      orderStatus = OrderStatus.CONFIRMED;
+    } else if (chargeResponse.status === ChargeStatus.REFUSED || chargeResponse.status === ChargeStatus.FAILED) {
+      orderStatus = OrderStatus.FAILED;
+    } else {
+      orderStatus = OrderStatus.PENDING;
+    }
+
+    // Cria novo Order para a cobrança recorrente
+    const order = this.orderRepository.create({
+      customer,
+      total: amount,
+      status: orderStatus,
+      paymentMethod,
+      origin: OrderOrigin.SUBSCRIPTION,
+    });
+
+    const savedOrder = await this.orderRepository.save(order);
+
+    // Cria a Transaction
+    const transaction = this.transactionRepository.create({
+      transactionId: chargeResponse.transactionId,
+      status: this.mapChargeStatusToTransactionStatus(chargeResponse.status),
+      amount,
+      currency: 'BRL',
+      message: chargeResponse.message,
+      processingTime: chargeResponse.processingTime,
+      order: savedOrder,
+    });
+
+    const savedTransaction = await this.transactionRepository.save(transaction);
+
+    return { order: savedOrder, transaction: savedTransaction };
   }
 
   private mapPaymentMethodToIntegration(domainPaymentMethod: PaymentMethod): IntegrationPaymentMethod {
