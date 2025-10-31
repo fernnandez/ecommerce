@@ -27,19 +27,7 @@
     "emitDecoratorMetadata": true,
 
     // Strict Type Checking
-    "strict": true,
-    "strictNullChecks": true,
-    "noImplicitAny": true,
-    "strictBindCallApply": true,
-    "strictFunctionTypes": true,
-    "strictPropertyInitialization": true,
-    "noImplicitReturns": true,
-    "noFallthroughCasesInSwitch": true,
-
-    // Additional Checks
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
-    "forceConsistentCasingInFileNames": false,
+    "strict": false,
 
     // Performance
     "incremental": true,

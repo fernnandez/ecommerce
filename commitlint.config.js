@@ -12,7 +12,7 @@ module.exports = {
         'refactor', // Refatoração de código
         'perf', // Melhoria de performance
         'test', // Adição ou correção de testes
-        'chore', // Mudanças em build, dependências, etc
+        'chore', // Mudanças estruturais, build, dependências, etc
         'ci', // Mudanças em CI/CD
         'build', // Mudanças no sistema de build
         'revert', // Reverter commit anterior
