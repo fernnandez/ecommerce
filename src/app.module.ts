@@ -1,6 +1,7 @@
 import { ApplicationModule } from '@application/application.module';
 import { DomainModule } from '@domain/domain.module';
 import { InfraModule } from '@infra/infra.module';
+import { IntegrationModule } from '@integration/integration.module';
 import { Module } from '@nestjs/common';
 import { PassportModule } from '@nestjs/passport';
 
@@ -10,6 +11,7 @@ import { PassportModule } from '@nestjs/passport';
     ApplicationModule,
     DomainModule,
     InfraModule,
+    IntegrationModule,
   ],
 })
 export class AppModule {}
