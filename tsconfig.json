@@ -1,0 +1,49 @@
+{
+  "compilerOptions": {
+    // Target and Module
+    "target": "ES2022",
+    "module": "NodeNext",
+    "lib": ["ES2022"],
+
+    // Output
+    "outDir": "./dist",
+    "declaration": true,
+    "sourceMap": true,
+    "removeComments": true,
+
+    // Module Resolution
+    "baseUrl": "./",
+    "paths": {
+      "@config/*": ["src/config/*"],
+      "@infra/*": ["src/infra/*"],
+      "@integration/*": ["src/integration/*"],
+      "@domain/*": ["src/domain/*"],
+      "@application/*": ["src/application/*"]
+    },
+    "allowSyntheticDefaultImports": true,
+
+    // Decorators
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+
+    // Strict Type Checking
+    "strict": true,
+    "strictNullChecks": true,
+    "noImplicitAny": true,
+    "strictBindCallApply": true,
+    "strictFunctionTypes": true,
+    "strictPropertyInitialization": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+
+    // Additional Checks
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "forceConsistentCasingInFileNames": false,
+
+    // Performance
+    "incremental": true,
+    "skipLibCheck": true
+  },
+  "exclude": ["node_modules", "dist", "test", "**/*.spec.ts", "**/*.test.ts"]
+}
