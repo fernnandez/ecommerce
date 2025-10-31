@@ -14,22 +14,26 @@ export class AdyenProvider implements IChargeProvider {
   async charge(request: ChargeRequest): Promise<ChargeResponse> {
     this.logger.log(`Processing charge via Adyen: ${request.reference}`);
 
+    const startTime = Date.now();
     await this.simulateNetworkDelay();
+    const endTime = Date.now();
 
     const transactionId = this.generateTransactionId();
     const chargeStatus = this.getChargeStatus(request.paymentMethod);
+    const processingTime = endTime - startTime;
 
     const response: ChargeResponse = {
       success: chargeStatus !== ChargeStatus.REFUSED && chargeStatus !== ChargeStatus.FAILED,
       transactionId,
       status: chargeStatus,
       message: this.getStatusMessage(chargeStatus),
-    };
 
+      processingTime,
+    };
     if (response.success) {
-      this.logger.log(`Charge ${chargeStatus}: ${transactionId}`);
+      this.logger.log(`Charge ${chargeStatus}: ${transactionId} (processed in ${processingTime}ms)`);
     } else {
-      this.logger.warn(`Charge ${chargeStatus}: ${transactionId}`);
+      this.logger.warn(`Charge ${chargeStatus}: ${transactionId} (processed in ${processingTime}ms)`);
     }
 
     return response;

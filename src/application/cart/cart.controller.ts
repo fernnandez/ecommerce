@@ -1,10 +1,12 @@
-import { CartService, CartResponseDto } from '@domain/cart/cart.service';
+import { CartResponseDto, CartService, CheckoutResponseDto } from '@domain/cart/cart.service';
 import { User } from '@domain/user/entities/user.entity';
 import { CurrentUser } from '@infra/auth/decorators/current-user.decorator';
 import { Body, Controller, Delete, Get, HttpCode, HttpStatus, NotFoundException, Param, Post } from '@nestjs/common';
 import { ApiBearerAuth, ApiBody, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { AddItemDto } from './dto/add-item.dto';
 import { CartResponse } from './dto/cart-response.dto';
+import { CheckoutResponseDto as CheckoutResponseDtoType } from './dto/checkout-response.dto';
+import { CheckoutDto } from './dto/checkout.dto';
 
 @ApiTags('cart')
 @ApiBearerAuth('JWT-auth')
@@ -99,11 +101,43 @@ export class CartController {
     return await this.cartService.removeItem(user.customer.id, itemId);
   }
 
+  @Post(':id/checkout')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Checkout cart',
+    description: 'Finalizes the cart and creates an order. Allows retry if previous attempt failed.',
+  })
+  @ApiParam({ name: 'id', description: 'Cart UUID' })
+  @ApiBody({ type: CheckoutDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Checkout completed successfully',
+    type: CheckoutResponseDtoType,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Bad request - Cart cannot be closed without items or with zero total',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Cart not found or does not belong to customer',
+  })
+  async checkout(
+    @CurrentUser() user: User,
+    @Param('id') cartId: string,
+    @Body() checkoutDto: CheckoutDto,
+  ): Promise<CheckoutResponseDto> {
+    if (!user.customer) {
+      throw new NotFoundException('Customer not found for user');
+    }
+    return await this.cartService.checkout(cartId, user.customer.id, checkoutDto.paymentMethod);
+  }
+
   @Post('close')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Close cart',
-    description: 'Closes the current open cart (checkout will be implemented later). Cannot close a cart with zero total or without items.',
+    description: 'Closes the current open cart. Cannot close a cart with zero total or without items.',
   })
   @ApiResponse({
     status: 200,

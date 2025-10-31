@@ -26,6 +26,7 @@ export interface ChargeResponse {
   transactionId: string;
   status: ChargeStatus;
   message?: string;
+  processingTime: number;
 }
 
 export const CHARGE_PROVIDER_TOKEN = 'CHARGE_PROVIDER';
@@ -33,4 +34,3 @@ export const CHARGE_PROVIDER_TOKEN = 'CHARGE_PROVIDER';
 export interface IChargeProvider {
   charge(request: ChargeRequest): Promise<ChargeResponse>;
 }
-

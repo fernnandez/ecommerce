@@ -1,10 +1,13 @@
-import { Cart, CartStatus } from '@domain/cart/entities/cart.entity';
 import { CartItem } from '@domain/cart/entities/cart-item.entity';
+import { Cart, CartStatus } from '@domain/cart/entities/cart.entity';
 import { CustomerService } from '@domain/customer/customer.service';
+import { PaymentMethod } from '@domain/order/entities/order.entity';
+import { OrderService } from '@domain/order/services/order.service';
 import { ProductService } from '@domain/product/product.service';
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, NotFoundException, forwardRef } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { Transactional } from 'typeorm-transactional';
 
 export interface CartResponseDto {
   id: string;
@@ -25,6 +28,10 @@ export interface CartItemResponseDto {
   updatedAt: Date;
 }
 
+export interface CheckoutResponseDto {
+  orderId: string;
+}
+
 @Injectable()
 export class CartService {
   constructor(
@@ -34,6 +41,8 @@ export class CartService {
     private readonly cartItemRepository: Repository<CartItem>,
     private readonly customerService: CustomerService,
     private readonly productService: ProductService,
+    @Inject(forwardRef(() => OrderService))
+    private readonly orderService: OrderService,
   ) {}
 
   async openCart(customerId: string): Promise<CartResponseDto> {
@@ -194,6 +203,14 @@ export class CartService {
       throw new NotFoundException('Cart not found');
     }
 
+    if (cart.status === CartStatus.CLOSED) {
+      const cartWithRelations = await this.cartRepository.findOne({
+        where: { id: cart.id },
+        relations: ['items', 'items.product'],
+      });
+      return this.mapCartToResponse(cartWithRelations);
+    }
+
     if (!cart.items || cart.items.length === 0) {
       throw new BadRequestException('Cannot close a cart without items');
     }
@@ -204,8 +221,6 @@ export class CartService {
 
     cart.status = CartStatus.CLOSED;
     await this.cartRepository.save(cart);
-
-    // TODO: Implementar checkout do carrinho
 
     const cartWithRelations = await this.cartRepository.findOne({
       where: { id: cart.id },
@@ -247,5 +262,28 @@ export class CartService {
       updatedAt: item.updatedAt,
     };
   }
-}
 
+  async getCartById(cartId: string): Promise<Cart | null> {
+    return await this.cartRepository.findOne({
+      where: { id: cartId, deletedAt: null },
+      relations: ['customer', 'items', 'items.product'],
+    });
+  }
+
+  @Transactional()
+  async checkout(cartId: string, customerId: string, paymentMethod: PaymentMethod): Promise<CheckoutResponseDto> {
+    await this.closeCart(cartId);
+
+    const cart = await this.getCartById(cartId);
+
+    if (!cart || cart.customer.id !== customerId) {
+      throw new NotFoundException('Cart not found or does not belong to customer');
+    }
+
+    const order = await this.orderService.createFromCart(customerId, cartId, paymentMethod);
+
+    return {
+      orderId: order.id,
+    };
+  }
+}
