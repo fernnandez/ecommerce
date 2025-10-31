@@ -4,9 +4,11 @@ import { InfraModule } from '@infra/infra.module';
 import { IntegrationModule } from '@integration/integration.module';
 import { Module } from '@nestjs/common';
 import { PassportModule } from '@nestjs/passport';
+import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
   imports: [
+    ScheduleModule.forRoot(),
     PassportModule.register({ defaultStrategy: 'jwt' }),
     ApplicationModule,
     DomainModule,
