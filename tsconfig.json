@@ -2,7 +2,7 @@
   "compilerOptions": {
     // Target and Module
     "target": "ES2022",
-    "module": "NodeNext",
+    "module": "commonjs",
     "lib": ["ES2022"],
 
     // Output
@@ -12,15 +12,21 @@
     "removeComments": true,
 
     // Module Resolution
+    "moduleResolution": "node",
     "baseUrl": "./",
     "paths": {
+      "@src/*": ["src/*"],
+      "@test/*": ["test/*"],
       "@config/*": ["src/config/*"],
       "@infra/*": ["src/infra/*"],
       "@integration/*": ["src/integration/*"],
       "@domain/*": ["src/domain/*"],
       "@application/*": ["src/application/*"]
     },
+    "resolveJsonModule": true,
     "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
 
     // Decorators
     "experimentalDecorators": true,
@@ -33,5 +39,6 @@
     "incremental": true,
     "skipLibCheck": true
   },
-  "exclude": ["node_modules", "dist", "test", "**/*.spec.ts", "**/*.test.ts"]
+  "include": ["src/**/*", "test/**/*"],
+  "exclude": ["node_modules", "dist"]
 }

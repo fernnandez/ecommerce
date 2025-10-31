@@ -2,7 +2,12 @@ import { Customer } from '@domain/customer/entities/customer.entity';
 import { Identification } from '@domain/customer/value-objects/identification.vo';
 import { UserRole } from '@domain/user/entities/user.entity';
 import { UserService } from '@domain/user/user.service';
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Transactional } from 'typeorm-transactional';
@@ -23,7 +28,14 @@ export class CustomerService {
     phone: string;
     identificationNumber: string;
   }): Promise<Customer> {
-    const identification = new Identification(createCustomerDto.identificationNumber);
+    let identification: Identification;
+    try {
+      identification = new Identification(createCustomerDto.identificationNumber);
+    } catch (error) {
+      throw new BadRequestException(
+        error instanceof Error ? error.message : 'Invalid identification number',
+      );
+    }
 
     const existingCustomer = await this.customerRepository.findOne({
       where: {

@@ -1,0 +1,22 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "esModuleInterop": true,
+    "isolatedModules": true,
+    "baseUrl": "./",
+    "paths": {
+      "@src/*": ["src/*"],
+      "@test/*": ["test/*"],
+      "@config/*": ["src/config/*"],
+      "@infra/*": ["src/infra/*"],
+      "@integration/*": ["src/integration/*"],
+      "@domain/*": ["src/domain/*"],
+      "@application/*": ["src/application/*"]
+    }
+  },
+  "include": ["test/**/*", "src/**/*"],
+  "exclude": ["node_modules", "dist"]
+}
+
