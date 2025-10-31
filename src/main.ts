@@ -42,7 +42,9 @@ async function bootstrap() {
   SwaggerModule.setup('api/docs', app, document, {
     swaggerOptions: {
       persistAuthorization: true,
+      persistCredentials: true,
     },
+    customSiteTitle: 'E-commerce API Documentation',
   });
 
   await app.listen(process.env.PORT ?? 3000);

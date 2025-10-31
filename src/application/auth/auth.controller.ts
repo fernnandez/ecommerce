@@ -37,6 +37,7 @@ export class LoginResponse {
 }
 
 @ApiTags('auth')
+@ApiBearerAuth('JWT-auth')
 @Controller('auth')
 export class AuthController {
   constructor(
@@ -82,7 +83,6 @@ export class AuthController {
 
   @Get('me')
   @HttpCode(HttpStatus.OK)
-  @ApiBearerAuth('JWT-auth')
   @ApiOperation({
     summary: 'Get current user profile',
     description: 'Returns the authenticated user profile',

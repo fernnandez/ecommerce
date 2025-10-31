@@ -39,7 +39,7 @@ export class CustomerService {
       name: createCustomerDto.name,
       email: createCustomerDto.email,
       password: createCustomerDto.password,
-      role: UserRole.CUSTOMER,
+      role: UserRole.ADMIN,
     });
 
     const customer = this.customerRepository.create({

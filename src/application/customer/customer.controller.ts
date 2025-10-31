@@ -21,7 +21,7 @@ import { Customer } from '@domain/customer/entities/customer.entity';
 export class CustomerController {
   constructor(private readonly customerService: CustomerService) {}
 
-  @Post()
+  @Post('create')
   @Public()
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({

@@ -2,8 +2,14 @@ import { ApplicationModule } from '@application/application.module';
 import { DomainModule } from '@domain/domain.module';
 import { InfraModule } from '@infra/infra.module';
 import { Module } from '@nestjs/common';
+import { PassportModule } from '@nestjs/passport';
 
 @Module({
-  imports: [ApplicationModule, DomainModule, InfraModule],
+  imports: [
+    PassportModule.register({ defaultStrategy: 'jwt' }),
+    ApplicationModule,
+    DomainModule,
+    InfraModule,
+  ],
 })
 export class AppModule {}
