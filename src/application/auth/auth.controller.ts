@@ -1,9 +1,11 @@
 import { UserService } from '@domain/user/user.service';
 import { JwtPayload } from '@infra/auth/strategies/jwt.strategy';
 import { Public } from '@infra/decorator/public.decorator';
-import { Body, Controller, HttpCode, HttpStatus, Post } from '@nestjs/common';
+import { CurrentUser } from '@infra/auth/decorators/current-user.decorator';
+import { Body, Controller, Get, HttpCode, HttpStatus, Post } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { ApiBody, ApiOperation, ApiProperty, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiOperation, ApiProperty, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { User } from '@domain/user/entities/user.entity';
 import { LoginDto } from './dto/login.dto';
 
 export class UserResponse {
@@ -75,6 +77,31 @@ export class AuthController {
         name: user.name,
         role: user.role,
       },
+    };
+  }
+
+  @Get('me')
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({
+    summary: 'Get current user profile',
+    description: 'Returns the authenticated user profile',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'User profile retrieved successfully',
+    type: UserResponse,
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized',
+  })
+  async getProfile(@CurrentUser() user: User): Promise<UserResponse> {
+    return {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
     };
   }
 }

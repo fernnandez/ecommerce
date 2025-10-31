@@ -10,8 +10,8 @@ import {
   ApiOperation,
   ApiResponse,
   ApiBody,
-  ApiBearerAuth,
 } from '@nestjs/swagger';
+import { Public } from '@infra/decorator/public.decorator';
 import { CustomerService } from '@domain/customer/customer.service';
 import { CreateCustomerDto } from './dto/create-customer.dto';
 import { Customer } from '@domain/customer/entities/customer.entity';
@@ -22,6 +22,7 @@ export class CustomerController {
   constructor(private readonly customerService: CustomerService) {}
 
   @Post()
+  @Public()
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({
     summary: 'Create a new customer',
@@ -37,7 +38,6 @@ export class CustomerController {
     status: 409,
     description: 'Email or CPF already in use',
   })
-  @ApiBearerAuth('JWT-auth')
   async create(
     @Body() createCustomerDto: CreateCustomerDto,
   ): Promise<Customer> {
