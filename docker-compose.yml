@@ -7,7 +7,10 @@ services:
       - "5432:5432"
     volumes:
       - ecommerce-data:/var/lib/postgresql
-    env_file: .env.docker
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ecommerce
 
 
 networks:
