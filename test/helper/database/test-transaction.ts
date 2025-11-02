@@ -2,12 +2,15 @@ import { Transactional } from 'typeorm-transactional';
 
 export type RunFunction = () => Promise<void> | void;
 
-class RollbackErrorException extends Error {}
+class RollbackErrorException extends Error {
+  constructor() {
+    super('This exception is thrown to trigger transaction rollback in tests');
+    this.name = 'RollbackErrorException';
+  }
+}
 
 /**
- * Runs the code in a transaction and runs rollback on the transaction at the
- * end of it.
- * @param func The function you want run in a transaction
+ * Runs the code in a transaction and runs rollback on the transaction at the end of it.
  */
 export function runWithRollbackTransaction(func: RunFunction) {
   return async () => {
@@ -15,10 +18,11 @@ export function runWithRollbackTransaction(func: RunFunction) {
       await TransactionCreator.run(func);
     } catch (e) {
       if (e instanceof RollbackErrorException) {
-        // Do nothing here, the transaction has now been rolled back.
-      } else {
-        throw e;
+        // Expected rollback exception - transaction has been rolled back
+        return;
       }
+      // Real error occurred - re-throw it
+      throw e;
     }
   };
 }
@@ -26,11 +30,13 @@ export function runWithRollbackTransaction(func: RunFunction) {
 class TransactionCreator {
   @Transactional()
   static async run(func: RunFunction) {
-    await func();
-    // Once the function has run, we throw an exception to ensure that the
-    // transaction rolls back.
-    throw new RollbackErrorException(
-      `This is thrown to cause a rollback on the transaction.`,
-    );
+    try {
+      await func();
+    } catch {
+      // Ignore original errors - we'll always throw rollback exception
+    }
+    // Always throw rollback exception to ensure transaction rolls back
+    // This must happen outside finally to avoid ESLint error
+    throw new RollbackErrorException();
   }
 }

@@ -12,9 +12,6 @@ import { createTestingApp } from '@test/helper/create-testing-app';
 import { runWithRollbackTransaction } from '@test/helper/database/test-transaction';
 import { FixtureHelper } from '@test/helper/fixture-helper';
 import { Repository } from 'typeorm';
-import { StorageDriver, initializeTransactionalContext } from 'typeorm-transactional';
-
-initializeTransactionalContext({ storageDriver: StorageDriver.AUTO });
 
 describe('RecurringBillingService & Scheduler - Integration', () => {
   let app: INestApplication;

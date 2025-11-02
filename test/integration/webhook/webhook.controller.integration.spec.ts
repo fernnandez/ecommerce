@@ -9,9 +9,6 @@ import { runWithRollbackTransaction } from '@test/helper/database/test-transacti
 import { FixtureHelper } from '@test/helper/fixture-helper';
 import request from 'supertest';
 import { Repository } from 'typeorm';
-import { StorageDriver, initializeTransactionalContext } from 'typeorm-transactional';
-
-initializeTransactionalContext({ storageDriver: StorageDriver.AUTO });
 
 describe('WebhookController - Integration (HTTP)', () => {
   let app: INestApplication;

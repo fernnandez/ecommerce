@@ -2,17 +2,11 @@ import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import request from 'supertest';
 import { Repository } from 'typeorm';
-import {
-  initializeTransactionalContext,
-  StorageDriver,
-} from 'typeorm-transactional';
 import { AppModule } from '@src/app.module';
 import { Product, ProductType } from '@src/domain/product/entities/product.entity';
 import { createTestingApp } from '@test/helper/create-testing-app';
 import { runWithRollbackTransaction } from '@test/helper/database/test-transaction';
 import { FixtureHelper } from '@test/helper/fixture-helper';
-
-initializeTransactionalContext({ storageDriver: StorageDriver.AUTO });
 
 describe('ProductController - Integration (HTTP)', () => {
   let app: INestApplication;

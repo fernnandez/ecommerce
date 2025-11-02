@@ -7,12 +7,6 @@ import { runWithRollbackTransaction } from '@test/helper/database/test-transacti
 import { FixtureHelper } from '@test/helper/fixture-helper';
 import request from 'supertest';
 import { Repository } from 'typeorm';
-import {
-  StorageDriver,
-  initializeTransactionalContext,
-} from 'typeorm-transactional';
-
-initializeTransactionalContext({ storageDriver: StorageDriver.AUTO });
 
 describe('CartController - Integration (HTTP)', () => {
   let app: INestApplication;
@@ -107,7 +101,7 @@ describe('CartController - Integration (HTTP)', () => {
       runWithRollbackTransaction(async () => {
         const token = await fixtures.fixtures.tokens.john();
         // John has an active cart from fixtures with items
-        
+
         const response = await request(app.getHttpServer())
           .get(baseUrl)
           .set('Authorization', `Bearer ${token}`)
@@ -122,7 +116,7 @@ describe('CartController - Integration (HTTP)', () => {
 
         expect(response.body.items.length).toBeGreaterThan(0);
         // Verify structure of items from fixtures
-        response.body.items.forEach((item) => {
+        response.body.items.forEach(item => {
           expect(item).toMatchObject({
             id: expect.any(String),
             productId: expect.any(String),
@@ -140,10 +134,7 @@ describe('CartController - Integration (HTTP)', () => {
         const token = await fixtures.fixtures.tokens.mary();
         // Mary has only closed carts in fixtures, no open cart
 
-        await request(app.getHttpServer())
-          .get(baseUrl)
-          .set('Authorization', `Bearer ${token}`)
-          .expect(404);
+        await request(app.getHttpServer()).get(baseUrl).set('Authorization', `Bearer ${token}`).expect(404);
       }),
     );
 
@@ -167,7 +158,8 @@ describe('CartController - Integration (HTTP)', () => {
           .get(baseUrl)
           .set('Authorization', `Bearer ${token}`);
 
-        const initialTotal = initialCartResponse.status === 200 ? parseFloat(initialCartResponse.body.total.toString()) : 0;
+        const initialTotal =
+          initialCartResponse.status === 200 ? parseFloat(initialCartResponse.body.total.toString()) : 0;
 
         const response = await request(app.getHttpServer())
           .post(`${baseUrl}/items`)
@@ -215,7 +207,7 @@ describe('CartController - Integration (HTTP)', () => {
           .send({ productId: product.id, quantity: 2 })
           .expect(200);
 
-        const productItem = response.body.items.find((item) => item.productId === product.id);
+        const productItem = response.body.items.find(item => item.productId === product.id);
         expect(productItem).toBeDefined();
         expect(productItem.quantity).toBe(3);
       }),
@@ -247,7 +239,10 @@ describe('CartController - Integration (HTTP)', () => {
           { payload: { quantity: 1 }, missing: 'productId' },
           { payload: { productId: 'invalid-uuid' }, invalid: 'invalid UUID' },
           { payload: { productId: '00000000-0000-0000-0000-000000000000', quantity: 0 }, invalid: 'quantity < 1' },
-          { payload: { productId: '00000000-0000-0000-0000-000000000000', quantity: -1 }, invalid: 'negative quantity' },
+          {
+            payload: { productId: '00000000-0000-0000-0000-000000000000', quantity: -1 },
+            invalid: 'negative quantity',
+          },
         ];
 
         for (const testCase of testCases) {
@@ -306,7 +301,7 @@ describe('CartController - Integration (HTTP)', () => {
           .expect(200);
 
         // Find the item to remove
-        const itemToRemove = cartAfterBothItems.body.items.find((item) => item.productId === product1.id);
+        const itemToRemove = cartAfterBothItems.body.items.find(item => item.productId === product1.id);
         expect(itemToRemove).toBeDefined();
 
         // Get current total before removal (after both items added)
@@ -319,11 +314,8 @@ describe('CartController - Integration (HTTP)', () => {
           .set('Authorization', `Bearer ${token}`)
           .expect(200);
 
-        // Verify product1 was removed
-        expect(removeResponse.body.items.find((item) => item.productId === product1.id)).toBeUndefined();
-        // Verify product2 is still there
-        expect(removeResponse.body.items.find((item) => item.productId === product2.id)).toBeDefined();
-        // Verify total was recalculated (use toBeCloseTo for floating point precision)
+        expect(removeResponse.body.items.find(item => item.productId === product1.id)).toBeUndefined();
+        expect(removeResponse.body.items.find(item => item.productId === product2.id)).toBeDefined();
         expect(parseFloat(removeResponse.body.total.toString())).toBeCloseTo(expectedTotalAfterRemoval, 2);
       }),
     );
@@ -343,9 +335,7 @@ describe('CartController - Integration (HTTP)', () => {
     it(
       'should return 401 when token is missing',
       runWithRollbackTransaction(async () => {
-        await request(app.getHttpServer())
-          .delete(`${baseUrl}/items/00000000-0000-0000-0000-000000000000`)
-          .expect(401);
+        await request(app.getHttpServer()).delete(`${baseUrl}/items/00000000-0000-0000-0000-000000000000`).expect(401);
       }),
     );
   });
@@ -385,15 +375,9 @@ describe('CartController - Integration (HTTP)', () => {
         const token = await fixtures.fixtures.tokens.john();
 
         // Create empty cart
-        await request(app.getHttpServer())
-          .post(`${baseUrl}/open`)
-          .set('Authorization', `Bearer ${token}`)
-          .expect(200);
+        await request(app.getHttpServer()).post(`${baseUrl}/open`).set('Authorization', `Bearer ${token}`).expect(200);
 
-        await request(app.getHttpServer())
-          .post(`${baseUrl}/close`)
-          .set('Authorization', `Bearer ${token}`)
-          .expect(400);
+        await request(app.getHttpServer()).post(`${baseUrl}/close`).set('Authorization', `Bearer ${token}`).expect(400);
       }),
     );
 
@@ -403,10 +387,7 @@ describe('CartController - Integration (HTTP)', () => {
         const token = await fixtures.fixtures.tokens.mary();
         // Mary may have a closed cart from fixtures, so no open cart exists
 
-        await request(app.getHttpServer())
-          .post(`${baseUrl}/close`)
-          .set('Authorization', `Bearer ${token}`)
-          .expect(404);
+        await request(app.getHttpServer()).post(`${baseUrl}/close`).set('Authorization', `Bearer ${token}`).expect(404);
       }),
     );
 
@@ -497,4 +478,3 @@ describe('CartController - Integration (HTTP)', () => {
     );
   });
 });
-

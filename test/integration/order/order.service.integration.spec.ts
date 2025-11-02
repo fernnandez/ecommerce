@@ -12,9 +12,6 @@ import { createTestingApp } from '@test/helper/create-testing-app';
 import { runWithRollbackTransaction } from '@test/helper/database/test-transaction';
 import { FixtureHelper } from '@test/helper/fixture-helper';
 import { Repository } from 'typeorm';
-import { StorageDriver, initializeTransactionalContext } from 'typeorm-transactional';
-
-initializeTransactionalContext({ storageDriver: StorageDriver.AUTO });
 
 describe('OrderService - Integration', () => {
   let app: INestApplication;
@@ -552,7 +549,6 @@ describe('OrderService - Integration', () => {
       'should update subscription status when transaction is linked to subscription period',
       runWithRollbackTransaction(async () => {
         // Get a subscription with a period that might have a transaction
-
         const order = await fixtures.fixtures.orders.pendingJohn();
 
         // Create a transaction and link it to a subscription period
@@ -566,9 +562,6 @@ describe('OrderService - Integration', () => {
           order,
         });
         const savedTransaction = await transactionRepo.save(transaction);
-
-        // Subscription period is already linked to order, which contains the transaction
-        // No need to manually link transaction to period anymore
 
         // Update transaction status - this should also update subscription
         await service.updateTransactionStatus(savedTransaction.transactionId, TransactionStatus.PAID);

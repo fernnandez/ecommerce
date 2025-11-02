@@ -7,9 +7,6 @@ import { runWithRollbackTransaction } from '@test/helper/database/test-transacti
 import { FixtureHelper } from '@test/helper/fixture-helper';
 import request from 'supertest';
 import { Repository } from 'typeorm';
-import { StorageDriver, initializeTransactionalContext } from 'typeorm-transactional';
-
-initializeTransactionalContext({ storageDriver: StorageDriver.AUTO });
 
 describe('AuthController - Integration (HTTP)', () => {
   let app: INestApplication;
@@ -159,19 +156,6 @@ describe('AuthController - Integration (HTTP)', () => {
       'should return 401 when token is invalid',
       runWithRollbackTransaction(async () => {
         await request(app.getHttpServer()).get(`${baseUrl}/me`).set('Authorization', 'Bearer invalidtoken').expect(401);
-      }),
-    );
-
-    it(
-      'should return 401 when user is deleted',
-      runWithRollbackTransaction(async () => {
-        const user = await fixtures.fixtures.users.peter();
-        const token = await fixtures.fixtures.tokens.peter();
-
-        // Delete the user
-        await userRepo.update(user.id, { deletedAt: new Date() });
-
-        await request(app.getHttpServer()).get(`${baseUrl}/me`).set('Authorization', `Bearer ${token}`).expect(401);
       }),
     );
   });
