@@ -267,10 +267,9 @@ export class CartService {
 
   private async updateCartTotal(cartId: string): Promise<void> {
     const result = await this.cartItemRepository
-      .createQueryBuilder('cartItem')
-      .select('COALESCE(SUM(cartItem.price * cartItem.quantity), 0)', 'total')
-      .where('cartItem.cart_id = :cartId', { cartId })
-      .andWhere('cartItem.deleted_at IS NULL')
+      .createQueryBuilder('cart_item')
+      .select('COALESCE(SUM(cart_item.price * cart_item.quantity), 0)', 'total')
+      .where('cart_item.cart_id = :cartId', { cartId })
       .getRawOne();
 
     const total = parseFloat(result?.total || '0');
