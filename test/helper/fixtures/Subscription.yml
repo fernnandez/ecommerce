@@ -8,6 +8,8 @@ items:
     periodicity: 'monthly'
     status: 'ACTIVE'
     nextBillingDate: '2024-12-01'
+    startDate: '2024-10-01'
+    description: 'Assinatura Premium Monthly Plan'
   pendingQuarterlySubscriptionMary:
     subscriptionId: 'SUB-002-MARY-QUARTERLY'
     customer: '@regularCustomerMary'
@@ -16,6 +18,8 @@ items:
     periodicity: 'quarterly'
     status: 'PENDING'
     nextBillingDate: '2024-11-15'
+    startDate: '2024-08-15'
+    description: 'Assinatura Pro Quarterly Plan'
   pastDueYearlySubscriptionPeter:
     subscriptionId: 'SUB-003-PETER-YEARLY'
     customer: '@newCustomerPeter'
@@ -24,6 +28,8 @@ items:
     periodicity: 'yearly'
     status: 'PAST_DUE'
     nextBillingDate: '2024-10-30'
+    startDate: '2023-10-30'
+    description: 'Assinatura Enterprise Yearly Plan'
   cancelledMonthlySubscriptionJohn:
     subscriptionId: 'SUB-004-JOHN-CANCELLED'
     customer: '@premiumCustomerJohn'
@@ -32,3 +38,5 @@ items:
     periodicity: 'monthly'
     status: 'CANCELED'
     nextBillingDate: '2024-11-15'
+    startDate: '2024-10-01'
+    description: 'Assinatura Premium Monthly Plan'

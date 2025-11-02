@@ -18,24 +18,25 @@ export class WebhookService {
     this.logger.log(`Processing webhook event: ${payload.event} for transaction: ${payload.transactionId}`);
 
     try {
+      // Passo 1: Buscar a transaction
       const transaction = await this.orderService.findTransactionByTransactionId(payload.transactionId);
 
       if (!transaction) {
         throw new NotFoundException(`Transaction ${payload.transactionId} not found`);
       }
 
-      // Passo 2: Validar consistência dos dados
-      this.validatePayloadConsistency(payload, transaction);
-
-      // Passo 4: Buscar o order
+      // Passo 2: Buscar o order (se não existir, lança 404)
       const order = await this.orderService.findOneOrFail(payload.orderId);
 
-      // Validar que o order pertence à transaction
+      // Passo 3: Validar que o order pertence à transaction
       if (transaction.order.id !== order.id) {
         throw new BadRequestException(
           `Transaction ${payload.transactionId} does not belong to order ${payload.orderId}`,
         );
       }
+
+      // Passo 4: Validar consistência dos dados (após confirmar que order e transaction existem e estão relacionados)
+      this.validatePayloadConsistency(payload, transaction);
 
       // Passo 5: Verificar idempotência e validar transição de status
       const expectedStatus = this.getExpectedTransactionStatus(payload.event);
@@ -91,6 +92,7 @@ export class WebhookService {
 
   /**
    * Valida se os dados do payload são consistentes com a transaction existente
+   * Nota: A validação de orderId e customerId já foi feita antes (order existe e pertence à transaction)
    */
   private validatePayloadConsistency(payload: WebhookPayloadDto, transaction: Transaction): void {
     // Validar amount com tolerância de 0.01 para diferenças de arredondamento
@@ -105,13 +107,6 @@ export class WebhookService {
     if (payload.currency !== transaction.currency) {
       throw new BadRequestException(
         `Currency mismatch: payload has ${payload.currency} but transaction has ${transaction.currency}`,
-      );
-    }
-
-    // Validar que o orderId do payload corresponde ao order da transaction
-    if (payload.orderId !== transaction.order.id) {
-      throw new BadRequestException(
-        `Order ID mismatch: payload has ${payload.orderId} but transaction belongs to order ${transaction.order.id}`,
       );
     }
 

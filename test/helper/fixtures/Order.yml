@@ -21,3 +21,27 @@ items:
     origin: 'cart'
     customer: '@newCustomerPeter'
     cart: '@closedCartForCancelledOrderPeter'
+  subscriptionOrderOctoberJohn:
+    total: 49.90
+    status: 'confirmed'
+    paymentMethod: 'card'
+    origin: 'subscription'
+    customer: '@premiumCustomerJohn'
+  subscriptionOrderNovemberJohn:
+    total: 49.90
+    status: 'pending'
+    paymentMethod: 'card'
+    origin: 'subscription'
+    customer: '@premiumCustomerJohn'
+  subscriptionOrderQuarterlyMary:
+    total: 129.90
+    status: 'confirmed'
+    paymentMethod: 'card'
+    origin: 'subscription'
+    customer: '@regularCustomerMary'
+  subscriptionOrderYearlyPeter:
+    total: 499.90
+    status: 'failed'
+    paymentMethod: 'card'
+    origin: 'subscription'
+    customer: '@newCustomerPeter'

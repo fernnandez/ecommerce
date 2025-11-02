@@ -2,21 +2,21 @@ entity: User
 items:
   systemAdministrator:
     email: 'admin@system.com'
-    password: '2b$10$pCF6MDbd.1oTur2JAin.kuIIpUSrRs5rIkhZ13u1vTgTv5NKXu60W'
+    password: '$2b$10$XxbyBapM8c0mgxz6NE6rpeXBMUr7kRBjRfzZqg7jxs2xMErtkMxVO'
     name: 'System Administrator'
     role: 'ADMIN'
   userPremiumCustomerJohn:
     email: 'john.silva@email.com'
-    password: '2b$10$pCF6MDbd.1oTur2JAin.kuIIpUSrRs5rIkhZ13u1vTgTv5NKXu60W'
+    password: '$2b$10$XxbyBapM8c0mgxz6NE6rpeXBMUr7kRBjRfzZqg7jxs2xMErtkMxVO'
     name: 'John Silva'
     role: 'CUSTOMER'
   userRegularCustomerMary:
     email: 'mary.oliveira@email.com'
-    password: '2b$10$pCF6MDbd.1oTur2JAin.kuIIpUSrRs5rIkhZ13u1vTgTv5NKXu60W'
+    password: '$2b$10$XxbyBapM8c0mgxz6NE6rpeXBMUr7kRBjRfzZqg7jxs2xMErtkMxVO'
     name: 'Mary Oliveira'
     role: 'CUSTOMER'
   userNewCustomerPeter:
     email: 'peter.santos@email.com'
-    password: '2b$10$pCF6MDbd.1oTur2JAin.kuIIpUSrRs5rIkhZ13u1vTgTv5NKXu60W'
+    password: '$2b$10$XxbyBapM8c0mgxz6NE6rpeXBMUr7kRBjRfzZqg7jxs2xMErtkMxVO'
     name: 'Peter Santos'
     role: 'CUSTOMER'

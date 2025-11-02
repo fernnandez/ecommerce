@@ -191,7 +191,7 @@ export class FixtureHelper {
   async getSubscription(subscriptionId: string): Promise<Subscription> {
     const subscription = await this.subscriptionRepo.findOne({
       where: { subscriptionId },
-      relations: ['customer', 'product', 'periods', 'periods.transaction'],
+      relations: ['customer', 'product', 'periods', 'periods.order'],
     });
 
     if (!subscription) {
