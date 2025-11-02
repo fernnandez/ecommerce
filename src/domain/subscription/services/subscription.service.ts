@@ -6,8 +6,8 @@ import { ConflictException, Injectable, NotFoundException } from '@nestjs/common
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Transactional } from 'typeorm-transactional';
-import { PeriodStatus, SubscriptionPeriod } from './entities/subscription-period.entity';
-import { Periodicity, Subscription, SubscriptionStatus } from './entities/subscription.entity';
+import { PeriodStatus, SubscriptionPeriod } from '../entities/subscription-period.entity';
+import { Periodicity, Subscription, SubscriptionStatus } from '../entities/subscription.entity';
 
 @Injectable()
 export class SubscriptionService {

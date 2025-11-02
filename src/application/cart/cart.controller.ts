@@ -1,4 +1,4 @@
-import { CartResponseDto, CartService, CheckoutResponseDto } from '@domain/cart/cart.service';
+import { CartResponseDto, CartService, CheckoutResponseDto } from '@src/domain/cart/services/cart.service';
 import { User } from '@domain/user/entities/user.entity';
 import { CurrentUser } from '@infra/auth/decorators/current-user.decorator';
 import { Body, Controller, Delete, Get, HttpCode, HttpStatus, NotFoundException, Param, Post } from '@nestjs/common';

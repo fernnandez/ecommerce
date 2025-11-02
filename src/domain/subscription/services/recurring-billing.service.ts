@@ -10,7 +10,7 @@ import {
 import { Inject, Injectable, Logger, forwardRef } from '@nestjs/common';
 import { Transactional } from 'typeorm-transactional';
 import { Subscription, SubscriptionStatus } from '../entities/subscription.entity';
-import { SubscriptionService } from '../subscription.service';
+import { SubscriptionService } from './subscription.service';
 
 export interface BillingResult {
   subscriptionId: string;

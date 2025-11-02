@@ -12,7 +12,7 @@ import { Customer } from '@src/domain/customer/entities/customer.entity';
 import { Product } from '@src/domain/product/entities/product.entity';
 import { Transaction, TransactionStatus } from '@src/domain/order/entities/transaction.entity';
 import { Order, OrderOrigin, OrderStatus, PaymentMethod } from '@src/domain/order/entities/order.entity';
-import { SubscriptionService } from '@src/domain/subscription/subscription.service';
+import { SubscriptionService } from '@src/domain/subscription/services/subscription.service';
 import { createTestingApp } from '@test/helper/create-testing-app';
 import { runWithRollbackTransaction } from '@test/helper/database/test-transaction';
 import { FixtureHelper } from '@test/helper/fixture-helper';

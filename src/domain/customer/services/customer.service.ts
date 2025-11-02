@@ -1,7 +1,7 @@
 import { Customer } from '@domain/customer/entities/customer.entity';
 import { Identification } from '@domain/customer/value-objects/identification.vo';
 import { UserRole } from '@domain/user/entities/user.entity';
-import { UserService } from '@domain/user/user.service';
+import { UserService } from '@src/domain/user/services/user.service';
 import {
   BadRequestException,
   ConflictException,

@@ -12,7 +12,7 @@ import {
   ApiBody,
 } from '@nestjs/swagger';
 import { Public } from '@infra/decorator/public.decorator';
-import { CustomerService } from '@domain/customer/customer.service';
+import { CustomerService } from '@src/domain/customer/services/customer.service';
 import { CreateCustomerDto } from './dto/create-customer.dto';
 import { Customer } from '@domain/customer/entities/customer.entity';
 

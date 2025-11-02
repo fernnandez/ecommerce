@@ -2,7 +2,7 @@ import { Controller, Get, Post, Body, Patch, Param, Delete, HttpCode, HttpStatus
 import { ApiTags, ApiOperation, ApiResponse, ApiBody, ApiParam, ApiBearerAuth } from '@nestjs/swagger';
 import { Roles } from '@infra/auth/decorators/roles.decorator';
 import { UserRole } from '@domain/user/entities/user.entity';
-import { ProductService } from '@domain/product/product.service';
+import { ProductService } from '@src/domain/product/services/product.service';
 import { Product } from '@domain/product/entities/product.entity';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';

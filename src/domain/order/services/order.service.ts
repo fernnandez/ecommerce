@@ -1,10 +1,10 @@
-import { CartService } from '@domain/cart/cart.service';
+import { CartService } from '@src/domain/cart/services/cart.service';
 import { Customer } from '@domain/customer/entities/customer.entity';
 import { Order, OrderOrigin, OrderStatus, PaymentMethod } from '@domain/order/entities/order.entity';
 import { Transaction, TransactionStatus } from '@domain/order/entities/transaction.entity';
 import { Periodicity as ProductPeriodicity, ProductType } from '@domain/product/entities/product.entity';
 import { Periodicity as SubscriptionPeriodicity } from '@domain/subscription/entities/subscription.entity';
-import { SubscriptionService } from '@domain/subscription/subscription.service';
+import { SubscriptionService } from '@src/domain/subscription/services/subscription.service';
 import {
   CHARGE_PROVIDER_TOKEN,
   ChargeRequest,
@@ -12,7 +12,7 @@ import {
   IChargeProvider,
   PaymentMethod as IntegrationPaymentMethod,
 } from '@integration/charge/interfaces/charge-provider.interface';
-import { Inject, Injectable, NotFoundException, forwardRef } from '@nestjs/common';
+import { Inject, Injectable, Logger, NotFoundException, forwardRef } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Transactional } from 'typeorm-transactional';
@@ -161,7 +161,7 @@ export class OrderService {
             );
             subscriptionIds.push(subscription.id);
           } catch (error) {
-            console.warn(`Failed to create subscription for product ${item.product.id}: ${error.message}`);
+            Logger.warn(`Failed to create subscription for product ${item.product.id}: ${error.message}`);
           }
         }
       }

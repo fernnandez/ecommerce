@@ -2,7 +2,7 @@ import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Subscription } from './entities/subscription.entity';
 import { SubscriptionPeriod } from './entities/subscription-period.entity';
-import { SubscriptionService } from './subscription.service';
+import { SubscriptionService } from './services/subscription.service';
 import { RecurringBillingService } from './services/recurring-billing.service';
 import { RecurringBillingSchedulerService } from './services/recurring-billing-scheduler.service';
 import { OrderModule } from '@domain/order/order.module';

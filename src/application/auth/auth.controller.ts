@@ -1,4 +1,4 @@
-import { UserService } from '@domain/user/user.service';
+import { UserService } from '@src/domain/user/services/user.service';
 import { JwtPayload } from '@infra/auth/strategies/jwt.strategy';
 import { Public } from '@infra/decorator/public.decorator';
 import { CurrentUser } from '@infra/auth/decorators/current-user.decorator';
