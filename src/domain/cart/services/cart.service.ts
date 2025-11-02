@@ -117,7 +117,6 @@ export class CartService {
 
     const savedCart = await this.cartRepository.save(newCart);
 
-    // Busca o cart recém criado com todas as relações necessárias
     const cartWithRelations = await this.findCartWithRelations({ id: savedCart.id });
 
     if (!cartWithRelations) {
@@ -127,10 +126,6 @@ export class CartService {
     return cartWithRelations;
   }
 
-  /**
-   * Helper method para buscar cart com todas as relações necessárias
-   * Evita duplicação de código e garante consistência
-   */
   private async findCartWithRelations(where: {
     id?: string;
     customer?: { id: string };
@@ -232,7 +227,31 @@ export class CartService {
     return this.mapCartToResponse(updatedCart);
   }
 
-  async closeCart(cartId: string): Promise<CartResponseDto> {
+  @Transactional()
+  async checkout(cartId: string, customerId: string, paymentMethod: PaymentMethod): Promise<CheckoutResponseDto> {
+    await this.closeCart(cartId);
+
+    const cart = await this.getCartById(cartId);
+
+    if (cart?.customer.id !== customerId) {
+      throw new NotFoundException('Cart not found or does not belong to customer');
+    }
+
+    const { order, subscriptionIds } = await this.orderService.createOrder(customerId, cartId, paymentMethod);
+
+    const orderWithTransactions = await this.orderService.findOneOrFail(order.id);
+
+    return {
+      orderId: order.id,
+      orderStatus: order.status,
+      orderTotal: Number(order.total),
+      paymentMethod: order.paymentMethod,
+      transactions: orderWithTransactions.transactions || [],
+      subscriptionIds: subscriptionIds.length > 0 ? subscriptionIds : undefined,
+    };
+  }
+
+  private async closeCart(cartId: string): Promise<CartResponseDto> {
     const cart = await this.findCartWithRelations({ id: cartId });
 
     if (!cart) {
@@ -305,29 +324,5 @@ export class CartService {
       where: { id: cartId, deletedAt: null },
       relations: ['customer', 'items', 'items.product'],
     });
-  }
-
-  @Transactional()
-  async checkout(cartId: string, customerId: string, paymentMethod: PaymentMethod): Promise<CheckoutResponseDto> {
-    await this.closeCart(cartId);
-
-    const cart = await this.getCartById(cartId);
-
-    if (cart?.customer.id !== customerId) {
-      throw new NotFoundException('Cart not found or does not belong to customer');
-    }
-
-    const { order, subscriptionIds } = await this.orderService.createOrder(customerId, cartId, paymentMethod);
-
-    const orderWithTransactions = await this.orderService.findOneOrFail(order.id);
-
-    return {
-      orderId: order.id,
-      orderStatus: order.status,
-      orderTotal: Number(order.total),
-      paymentMethod: order.paymentMethod,
-      transactions: orderWithTransactions.transactions || [],
-      subscriptionIds: subscriptionIds.length > 0 ? subscriptionIds : undefined,
-    };
   }
 }

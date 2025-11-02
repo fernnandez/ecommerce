@@ -215,6 +215,14 @@ export class SubscriptionService {
     });
   }
 
+  async findByCustomer(customerId: string): Promise<Subscription[]> {
+    return await this.subscriptionRepository.find({
+      where: { customer: { id: customerId }, deletedAt: null },
+      relations: ['customer', 'product', 'periods', 'periods.order'],
+      order: { createdAt: 'DESC' },
+    });
+  }
+
   private calculateNextBillingDate(periodicity: Periodicity): Date {
     const date = new Date();
 

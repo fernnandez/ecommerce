@@ -183,6 +183,14 @@ export class OrderService {
     return order;
   }
 
+  async findByCustomer(customerId: string): Promise<Order[]> {
+    return await this.orderRepository.find({
+      where: { customer: { id: customerId }, deletedAt: null },
+      relations: ['customer', 'cart', 'transactions'],
+      order: { createdAt: 'DESC' },
+    });
+  }
+
   async updateStatus(id: string, status: OrderStatus): Promise<Order> {
     const order = await this.findOneOrFail(id);
     order.status = status;

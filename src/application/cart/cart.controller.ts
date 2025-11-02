@@ -79,11 +79,7 @@ export class CartController {
     if (!user.customer) {
       throw new NotFoundException('Customer not found for user');
     }
-    return await this.cartService.addItem(
-      user.customer.id,
-      addItemDto.productId,
-      addItemDto.quantity || 1,
-    );
+    return await this.cartService.addItem(user.customer.id, addItemDto.productId, addItemDto.quantity || 1);
   }
 
   @Delete('items/:itemId')
@@ -139,35 +135,5 @@ export class CartController {
       throw new NotFoundException('Customer not found for user');
     }
     return await this.cartService.checkout(cartId, user.customer.id, checkoutDto.paymentMethod);
-  }
-
-  @Post('close')
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({
-    summary: 'Close cart',
-    description: 'Closes the current open cart. Cannot close a cart with zero total or without items.',
-  })
-  @ApiResponse({
-    status: 200,
-    description: 'Cart closed successfully',
-    type: CartResponse,
-  })
-  @ApiResponse({
-    status: 400,
-    description: 'Bad request - Cart cannot be closed without items or with zero total',
-  })
-  @ApiResponse({
-    status: 404,
-    description: 'Open cart not found',
-  })
-  async closeCart(@CurrentUser() user: User): Promise<CartResponseDto> {
-    if (!user.customer) {
-      throw new NotFoundException('Customer not found for user');
-    }
-    const cart = await this.cartService.getOpenCart(user.customer.id);
-    if (!cart) {
-      throw new NotFoundException('Open cart not found');
-    }
-    return await this.cartService.closeCart(cart.id);
   }
 }
