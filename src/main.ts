@@ -37,7 +37,30 @@ async function bootstrap() {
   // Swagger Configuration
   const config = new DocumentBuilder()
     .setTitle('E-commerce API')
-    .setDescription('API documentation for E-commerce application')
+    .setDescription(
+      `API documentation for E-commerce application
+
+## Rate Limits
+
+Esta API implementa rate limiting para proteger contra abuso:
+
+- **Limite Global**: 100 requisições por minuto por IP (aplicado a todas as rotas)
+- **Rota de Login**: 5 requisições por minuto por IP (mais restritivo para prevenir brute force)
+
+### Headers de Resposta
+
+As respostas incluem headers informativos sobre rate limits:
+- \`X-RateLimit-Limit\`: Limite total de requisições no período
+- \`X-RateLimit-Remaining\`: Número de requisições restantes no período
+- \`X-RateLimit-Reset\`: Timestamp (em segundos) quando o rate limit será resetado
+
+### Status Code 429
+
+Quando o limite é excedido, a API retorna:
+- **Status**: 429 Too Many Requests
+- **Body**: Mensagem de erro indicando que o rate limit foi excedido
+- **Retry-After**: Header opcional indicando quantos segundos esperar antes de tentar novamente`,
+    )
     .setVersion('1.0')
     .addBearerAuth(
       {
@@ -59,6 +82,7 @@ async function bootstrap() {
       },
       'webhook-secret',
     )
+    .addTag('health', 'Health check endpoints')
     .addTag('auth', 'Authentication endpoints')
     .addTag('customer', 'Customer management endpoints')
     .addTag('cart', 'Cart management endpoints')

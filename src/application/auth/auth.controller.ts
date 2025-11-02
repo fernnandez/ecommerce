@@ -50,7 +50,11 @@ export class AuthController {
   @Public()
   @Throttle({ default: { limit: 5, ttl: 60000 } }) // 5 tentativas por minuto por IP
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'User login', description: 'Authenticate user and receive JWT token' })
+  @ApiOperation({
+    summary: 'User login',
+    description:
+      'Authenticate user and receive JWT token. **Rate Limit**: Esta rota possui um limite mais restritivo de **5 requisições por minuto por IP** para prevenir ataques de brute force.',
+  })
   @ApiBody({ type: LoginDto })
   @ApiResponse({
     status: 200,
@@ -63,7 +67,7 @@ export class AuthController {
   })
   @ApiResponse({
     status: 429,
-    description: 'Too many requests - Rate limit exceeded',
+    description: 'Too many requests - Rate limit exceeded (5 requisições por minuto)',
   })
   async login(@Body() loginDto: LoginDto): Promise<LoginResponse> {
     const user = await this.userService.validateUser(loginDto.email, loginDto.password);
