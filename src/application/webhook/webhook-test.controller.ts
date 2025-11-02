@@ -7,6 +7,7 @@ import { Repository } from 'typeorm';
 import { TestWebhookDto } from './dto/test-webhook.dto';
 import { WebhookPayloadDto } from './dto/webhook-payload.dto';
 import { WebhookService } from './webhook.service';
+import { Public } from '@src/infra/decorator/public.decorator';
 
 @ApiTags('webhooks')
 @Controller('webhooks/test')
@@ -19,6 +20,7 @@ export class WebhookTestController {
     private readonly orderRepository: Repository<Order>,
   ) {}
 
+  @Public()
   @Post('simulate')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -35,7 +37,6 @@ export class WebhookTestController {
     description: 'Transaction not found',
   })
   async simulateWebhook(@Body() testDto: TestWebhookDto): Promise<{ success: boolean; payload: WebhookPayloadDto }> {
-    // Buscar a transaction com a relação do order
     const transaction = await this.transactionRepository.findOne({
       where: { transactionId: testDto.transactionId, deletedAt: null },
       relations: ['order'],
@@ -45,7 +46,6 @@ export class WebhookTestController {
       throw new NotFoundException(`Transaction ${testDto.transactionId} not found`);
     }
 
-    // Buscar o order completo com todas as relações necessárias
     const order = await this.orderRepository.findOne({
       where: { id: transaction.order.id, deletedAt: null },
       relations: ['customer', 'cart', 'subscriptionPeriods', 'subscriptionPeriods.subscription'],
@@ -55,7 +55,6 @@ export class WebhookTestController {
       throw new NotFoundException(`Order ${transaction.order.id} not found`);
     }
 
-    // Buscar subscription se o order tiver subscriptionPeriods
     let subscriptionId: string | undefined;
     if (order.subscriptionPeriods && order.subscriptionPeriods.length > 0) {
       const period = order.subscriptionPeriods[0];
@@ -64,7 +63,6 @@ export class WebhookTestController {
       }
     }
 
-    // Montar o payload do webhook
     const payload: WebhookPayloadDto = {
       event: testDto.event,
       transactionId: transaction.transactionId,
@@ -80,7 +78,6 @@ export class WebhookTestController {
       },
     };
 
-    // Processar o webhook
     await this.webhookService.processWebhook(payload);
 
     return {

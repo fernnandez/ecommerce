@@ -21,7 +21,6 @@ API completa para gerenciamento de e-commerce com suporte a produtos, carrinho d
 - **NestJS** - Framework Node.js
 - **TypeORM** - ORM para TypeScript
 - **PostgreSQL** - Banco de dados relacional
-- **Redis** - Cache e sessões
 - **JWT** - Autenticação
 - **Swagger** - Documentação da API
 - **Docker** - Containerização
@@ -86,9 +85,11 @@ API completa para gerenciamento de e-commerce com suporte a produtos, carrinho d
    cd ecommerce
    ```
 
-2. **Instale as dependências**
-   ```bash
-   npm install
+2. **Configure a versão do node e instale as dependências**
+  ```bash
+   nvm use
+
+  npm install
    ```
 
 3. **Configure as variáveis de ambiente**
@@ -103,37 +104,16 @@ API completa para gerenciamento de e-commerce com suporte a produtos, carrinho d
    WEBHOOK_SECRET=webhook-secret
    ```
 
-4. **Inicie os serviços com Docker** (opcional, mas recomendado)
+4. **Inicie os serviços com Docker**
    ```bash
    docker-compose up -d
    ```
-
-   Isso iniciará PostgreSQL e Redis automaticamente.
-
-   Ou inicie manualmente:
-   - PostgreSQL na porta 5432
-   - Redis na porta 6379
 
 5. **Configure o banco de dados**
    ```bash
    # Sincroniza o schema e carrega fixtures
    npm run db:reload:dev
    ```
-
-## 🔧 Configuração
-
-### Variáveis de Ambiente
-
-| Variável | Descrição | Obrigatório | Padrão |
-|----------|-----------|-------------|--------|
-| `NODE_ENV` | Ambiente (development/production/test) | Não | - |
-| `DATABASE_URL` | URL de conexão PostgreSQL | Sim | - |
-| `PORT` | Porta da aplicação | Não | 3000 |
-| `REDIS_HOST` | Host do Redis | Sim | - |
-| `REDIS_PORT` | Porta do Redis | Sim | - |
-| `JWT_SECRET` | Chave secreta para JWT | Sim | - |
-| `JWT_EXPIRES_IN` | Tempo de expiração do token | Não | 24h |
-| `WEBHOOK_SECRET` | Chave secreta para webhooks | Sim | - |
 
 ## 🏃 Executando o Projeto
 
@@ -176,20 +156,9 @@ A documentação interativa da API está disponível em:
 3. **Autorizar no Swagger**
    - Use o token copiado no botão "Authorize"
 
-4. **Criar Produto** (`POST /api/product`) - Requer role ADMIN
-   ```json
-   {
-     "name": "Plano Premium",
-     "description": "Plano mensal premium",
-     "price": 99.90,
-     "type": "subscription",
-     "periodicity": "monthly"
-   }
-   ```
+4. **Abrir Carrinho** (`POST /api/cart/open`)
 
-5. **Abrir Carrinho** (`POST /api/cart/open`)
-
-6. **Adicionar Item** (`POST /api/cart/items`)
+5. **Adicionar Item** (`POST /api/cart/items`)
    ```json
    {
      "productId": "uuid-do-produto",
@@ -197,7 +166,7 @@ A documentação interativa da API está disponível em:
    }
    ```
 
-7. **Fazer Checkout** (`POST /api/cart/:id/checkout`)
+6. **Fazer Checkout** (`POST /api/cart/:id/checkout`)
    ```json
    {
      "paymentMethod": "card"
@@ -226,10 +195,6 @@ Use o endpoint de simulação que constrói automaticamente o payload:
 
 **Autenticação:**
 Este endpoint é público para fins de teste (não requer autenticação JWT).
-
-### Método 2: Endpoint Real de Webhook
-
-**POST** `/api/webhooks/payment`
 
 **Headers obrigatórios:**
 ```
@@ -268,21 +233,6 @@ curl -X POST http://localhost:3000/api/webhooks/test/simulate \
   -d '{
     "transactionId": "tx_abc123",
     "event": "payment_success"
-  }'
-
-# Webhook real
-curl -X POST http://localhost:3000/api/webhooks/payment \
-  -H "Content-Type: application/json" \
-  -H "X-Webhook-Secret: webhook-secret" \
-  -d '{
-    "event": "payment_success",
-    "transactionId": "tx_123456789",
-    "orderId": "order-uuid-aqui",
-    "customerId": "customer-uuid-aqui",
-    "amount": 99.90,
-    "currency": "BRL",
-    "paymentMethod": "card",
-    "timestamp": "2024-01-15T10:30:00Z"
   }'
 ```
 
