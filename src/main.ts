@@ -34,9 +34,19 @@ async function bootstrap() {
       },
       'JWT-auth',
     )
+    .addApiKey(
+      {
+        type: 'apiKey',
+        name: 'X-Webhook-Secret',
+        in: 'header',
+        description: 'Webhook secret for authentication',
+      },
+      'webhook-secret',
+    )
     .addTag('auth', 'Authentication endpoints')
     .addTag('customer', 'Customer management endpoints')
     .addTag('cart', 'Cart management endpoints')
+    .addTag('webhooks', 'Webhook endpoints')
     .build();
 
   const document = SwaggerModule.createDocument(app, config);
