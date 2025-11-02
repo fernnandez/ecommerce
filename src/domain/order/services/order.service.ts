@@ -60,6 +60,8 @@ export class OrderService {
       throw new NotFoundException('Cart does not belong to customer');
     }
 
+    // TODO: VERIFICAR se já existe uma subscription ativa para o customer e o produto
+
     let order = await this.orderRepository.findOne({
       where: { cart: { id: cartId }, deletedAt: null },
       relations: ['cart', 'customer'],
@@ -116,7 +118,12 @@ export class OrderService {
       order: updatedOrder,
     });
 
-    const savedTransaction = await this.transactionRepository.save(transaction);
+    await this.transactionRepository.save(transaction);
+
+    const orderWithTransactions = await this.orderRepository.findOne({
+      where: { id: updatedOrder.id },
+      relations: ['transactions'],
+    });
 
     const hasSubscriptionProducts = cart.items?.some(item => item.product?.type === ProductType.SUBSCRIPTION);
 
@@ -133,19 +140,16 @@ export class OrderService {
         item => item.product?.type === ProductType.SUBSCRIPTION && item.product.periodicity,
       );
 
-      // TODO: analisar processamento async aquiÞ
       for (const item of subscriptionItems) {
         if (item.product && item.product.periodicity) {
           try {
-            const subscriptionPeriodicity = this.mapProductPeriodicityToSubscriptionPeriodicity(
-              item.product.periodicity,
-            );
+            const subscriptionPeriodicity = this.mapProductPeriodicityToSubscriptionPeriodicity(item.product.periodicity);
             const subscription = await this.subscriptionService.create(
               customer,
               item.product,
               Number(item.price),
               subscriptionPeriodicity,
-              savedTransaction,
+              orderWithTransactions,
             );
             subscriptionIds.push(subscription.id);
           } catch (error) {
@@ -180,7 +184,7 @@ export class OrderService {
   async findTransactionByTransactionId(transactionId: string): Promise<Transaction | null> {
     return await this.transactionRepository.findOne({
       where: { transactionId },
-      relations: ['order'],
+      relations: ['order', 'order.customer'],
     });
   }
 
@@ -201,10 +205,6 @@ export class OrderService {
     return savedTransaction;
   }
 
-  /**
-   * Cria um Order e Transaction para cobrança recorrente
-   * Usado pelo motor de cobrança recorrente
-   */
   @Transactional()
   async createRecurringOrder(
     customerId: string,
@@ -215,6 +215,7 @@ export class OrderService {
       status: any;
       message?: string;
       processingTime: number;
+      gateway?: string;
     },
   ): Promise<{ order: Order; transaction: Transaction }> {
     const customer = await this.customerRepository.findOne({

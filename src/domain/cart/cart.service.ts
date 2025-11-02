@@ -314,7 +314,6 @@ export class CartService {
 
     const { order, subscriptionIds } = await this.orderService.createOrder(customerId, cartId, paymentMethod);
 
-    // Carrega transactions do order
     const orderWithTransactions = await this.orderService.findOneOrFail(order.id);
 
     return {

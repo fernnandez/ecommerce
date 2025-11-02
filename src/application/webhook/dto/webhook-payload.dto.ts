@@ -9,10 +9,6 @@ export enum WebhookEventType {
 }
 
 class WebhookMetadataDto {
-  @ApiProperty({ description: 'Cart ID', example: 'uuid' })
-  @IsUUID()
-  @IsNotEmpty()
-  cartId: string;
 
   @ApiProperty({ description: 'Subscription ID (optional)', example: 'uuid', required: false })
   @IsUUID()
@@ -65,11 +61,11 @@ export class WebhookPayloadDto {
   @IsNotEmpty()
   timestamp: string;
 
-  @ApiProperty({ description: 'Metadata', type: WebhookMetadataDto })
+  @ApiProperty({ description: 'Metadata', type: WebhookMetadataDto, required: false })
   @IsObject()
   @ValidateNested()
   @Type(() => WebhookMetadataDto)
-  @IsNotEmpty()
-  metadata: WebhookMetadataDto;
+  @IsOptional()
+  metadata?: WebhookMetadataDto;
 }
 

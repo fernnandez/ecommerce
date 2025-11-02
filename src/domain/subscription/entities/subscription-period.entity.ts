@@ -1,5 +1,5 @@
 import { Subscription } from './subscription.entity';
-import { Transaction } from '@domain/order/entities/transaction.entity';
+import { Order } from '@domain/order/entities/order.entity';
 import {
   Column,
   CreateDateColumn,
@@ -42,9 +42,15 @@ export class SubscriptionPeriod {
   })
   status: PeriodStatus;
 
-  @ManyToOne(() => Transaction, { nullable: true })
-  @JoinColumn({ name: 'transaction_id' })
-  transaction: Transaction;
+  @ManyToOne(() => Order, { nullable: false })
+  @JoinColumn({ name: 'order_id' })
+  order: Order;
+
+  @Column({ type: 'decimal', precision: 10, scale: 2 })
+  price: number;
+
+  @Column({ name: 'billed_at', type: 'date', nullable: true })
+  billedAt: Date;
 
   @CreateDateColumn()
   createdAt: Date;

@@ -12,6 +12,7 @@ import {
 } from 'typeorm';
 import { Cart } from '@domain/cart/entities/cart.entity';
 import { Transaction } from './transaction.entity';
+import { SubscriptionPeriod } from '@domain/subscription/entities/subscription-period.entity';
 
 export enum OrderStatus {
   PENDING = 'pending',
@@ -36,7 +37,7 @@ export class Order {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ type: 'decimal', precision: 10, scale: 2 })
+  @Column({ name: 'total', type: 'decimal', precision: 10, scale: 2 })
   total: number;
 
   @Column({
@@ -69,6 +70,9 @@ export class Order {
 
   @OneToMany(() => Transaction, transaction => transaction.order, { cascade: true })
   transactions: Transaction[];
+
+  @OneToMany(() => SubscriptionPeriod, period => period.order)
+  subscriptionPeriods: SubscriptionPeriod[];
 
   @CreateDateColumn()
   createdAt: Date;

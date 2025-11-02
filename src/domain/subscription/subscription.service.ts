@@ -1,5 +1,6 @@
 import { Customer } from '@domain/customer/entities/customer.entity';
-import { Transaction, TransactionStatus } from '@domain/order/entities/transaction.entity';
+import { Order, OrderStatus } from '@domain/order/entities/order.entity';
+import { TransactionStatus } from '@domain/order/entities/transaction.entity';
 import { Product } from '@domain/product/entities/product.entity';
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -23,7 +24,7 @@ export class SubscriptionService {
     product: Product,
     price: number,
     periodicity: Periodicity,
-    initialTransaction: Transaction,
+    originOrder: Order,
   ): Promise<Subscription> {
     const existingActiveSubscription = await this.subscriptionRepository.findOne({
       where: {
@@ -38,13 +39,13 @@ export class SubscriptionService {
       throw new ConflictException(`Customer already has an active subscription for product ${product.id}`);
     }
 
-    // Calcula a próxima data de cobrança baseada na periodicidade
+    const startDate = new Date();
+
     const nextBillingDate = this.calculateNextBillingDate(periodicity);
 
-    // Cria o subscriptionId único
     const subscriptionId = this.generateSubscriptionId();
 
-    const initialStatus = this.mapTransactionStatusToSubscriptionStatus(initialTransaction.status);
+    const initialStatus = this.mapOrderStatusToSubscriptionStatus(originOrder.status);
 
     const subscription = this.subscriptionRepository.create({
       subscriptionId,
@@ -54,11 +55,13 @@ export class SubscriptionService {
       periodicity,
       status: initialStatus,
       nextBillingDate,
+      startDate,
+      description: `Assinatura ${product.name || product.id}`,
     });
 
     const savedSubscription = await this.subscriptionRepository.save(subscription);
 
-    const period = await this.createPeriod(savedSubscription, initialTransaction);
+    const period = await this.createPeriod(savedSubscription, originOrder, price);
 
     savedSubscription.periods = [period];
 
@@ -66,24 +69,25 @@ export class SubscriptionService {
   }
 
   @Transactional()
-  async createPeriod(subscription: Subscription, transaction: Transaction): Promise<SubscriptionPeriod> {
+  async createPeriod(subscription: Subscription, order: Order, price: number): Promise<SubscriptionPeriod> {
     const today = new Date();
     const endDate = this.calculatePeriodEndDate(today, subscription.periodicity);
 
-    const statusMapping: Record<TransactionStatus, PeriodStatus> = {
-      [TransactionStatus.PAID]: PeriodStatus.PAID,
-      [TransactionStatus.FAILED]: PeriodStatus.FAILED,
-      [TransactionStatus.REFUSED]: PeriodStatus.FAILED,
-      [TransactionStatus.CREATED]: PeriodStatus.PENDING,
-      [TransactionStatus.PROCESSING]: PeriodStatus.PENDING,
+    const statusMapping: Record<OrderStatus, PeriodStatus> = {
+      [OrderStatus.CONFIRMED]: PeriodStatus.PAID,
+      [OrderStatus.PENDING]: PeriodStatus.PENDING,
+      [OrderStatus.FAILED]: PeriodStatus.FAILED,
+      [OrderStatus.CANCELLED]: PeriodStatus.FAILED,
     };
 
     const period = this.subscriptionPeriodRepository.create({
       subscription,
+      order,
       startDate: today,
       endDate,
-      status: statusMapping[transaction.status],
-      transaction,
+      price,
+      billedAt: today,
+      status: statusMapping[order.status],
     });
 
     return await this.subscriptionPeriodRepository.save(period);
@@ -115,11 +119,11 @@ export class SubscriptionService {
     return await this.subscriptionRepository.save(subscription);
   }
 
-  async updatePeriodStatus(subscriptionId: string, transactionId: string, status: PeriodStatus): Promise<void> {
+  async updatePeriodStatus(subscriptionId: string, orderId: string, status: PeriodStatus): Promise<void> {
     const subscription = await this.findOneOrFail(subscriptionId);
 
     if (subscription.periods && subscription.periods.length > 0) {
-      const period = subscription.periods.find(p => p.transaction?.transactionId === transactionId);
+      const period = subscription.periods.find(p => p.order?.id === orderId);
       if (period) {
         period.status = status;
         await this.subscriptionPeriodRepository.save(period);
@@ -131,10 +135,13 @@ export class SubscriptionService {
     transactionId: string,
     transactionStatus: TransactionStatus,
   ): Promise<{ subscriptionId: string; periodStatus: PeriodStatus; subscriptionStatus: SubscriptionStatus } | null> {
-    const period = await this.subscriptionPeriodRepository.findOne({
-      where: { transaction: { transactionId } },
-      relations: ['subscription', 'transaction'],
-    });
+    const period = await this.subscriptionPeriodRepository
+      .createQueryBuilder('period')
+      .innerJoin('period.order', 'order')
+      .innerJoin('order.transactions', 'transaction')
+      .where('transaction.transactionId = :transactionId', { transactionId })
+      .leftJoinAndSelect('period.subscription', 'subscription')
+      .getOne();
 
     if (!period) {
       return null;
@@ -160,9 +167,14 @@ export class SubscriptionService {
     const subscriptionStatus = subscriptionStatusMapping[transactionStatus];
 
     period.status = periodStatus;
+
     await this.subscriptionPeriodRepository.save(period);
 
     await this.updateStatus(period.subscription.id, subscriptionStatus);
+
+    if (transactionStatus === TransactionStatus.PAID) {
+      await this.updateNextBillingDate(period.subscription.id);
+    }
 
     return {
       subscriptionId: period.subscription.id,
@@ -174,7 +186,7 @@ export class SubscriptionService {
   async findOneOrFail(id: string): Promise<Subscription> {
     const subscription = await this.subscriptionRepository.findOne({
       where: { id, deletedAt: null },
-      relations: ['customer', 'product', 'periods', 'periods.transaction'],
+      relations: ['customer', 'product', 'periods', 'periods.order'],
     });
 
     if (!subscription) {
@@ -248,15 +260,14 @@ export class SubscriptionService {
     return `sub_${timestamp}_${random}`.toUpperCase();
   }
 
-  private mapTransactionStatusToSubscriptionStatus(transactionStatus: TransactionStatus): SubscriptionStatus {
-    const mapping: Record<TransactionStatus, SubscriptionStatus> = {
-      [TransactionStatus.PAID]: SubscriptionStatus.ACTIVE,
-      [TransactionStatus.CREATED]: SubscriptionStatus.PENDING,
-      [TransactionStatus.PROCESSING]: SubscriptionStatus.PENDING,
-      [TransactionStatus.FAILED]: SubscriptionStatus.CANCELED,
-      [TransactionStatus.REFUSED]: SubscriptionStatus.CANCELED,
+  private mapOrderStatusToSubscriptionStatus(orderStatus: OrderStatus): SubscriptionStatus {
+    const mapping: Record<OrderStatus, SubscriptionStatus> = {
+      [OrderStatus.CONFIRMED]: SubscriptionStatus.ACTIVE,
+      [OrderStatus.PENDING]: SubscriptionStatus.PENDING,
+      [OrderStatus.FAILED]: SubscriptionStatus.CANCELED,
+      [OrderStatus.CANCELLED]: SubscriptionStatus.CANCELED,
     };
 
-    return mapping[transactionStatus];
+    return mapping[orderStatus];
   }
 }

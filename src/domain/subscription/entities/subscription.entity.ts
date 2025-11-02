@@ -61,6 +61,12 @@ export class Subscription {
   @Column({ name: 'next_billing_date', type: 'date' })
   nextBillingDate: Date;
 
+  @Column({ name: 'start_date', type: 'date', nullable: true })
+  startDate: Date;
+
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  description: string;
+
   @OneToMany(() => SubscriptionPeriod, period => period.subscription, { cascade: true })
   periods: SubscriptionPeriod[];
 

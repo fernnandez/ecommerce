@@ -47,11 +47,15 @@ export class CartController {
     status: 404,
     description: 'No open cart found',
   })
-  async getCart(@CurrentUser() user: User): Promise<CartResponseDto | null> {
+  async getCart(@CurrentUser() user: User): Promise<CartResponseDto> {
     if (!user.customer) {
       throw new NotFoundException('Customer not found for user');
     }
-    return await this.cartService.getOpenCart(user.customer.id);
+    const cart = await this.cartService.getOpenCart(user.customer.id);
+    if (!cart) {
+      throw new NotFoundException('No open cart found');
+    }
+    return cart;
   }
 
   @Post('items')

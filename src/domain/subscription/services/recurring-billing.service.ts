@@ -1,5 +1,5 @@
-import { OrderService } from '@domain/order/services/order.service';
 import { PaymentMethod } from '@domain/order/entities/order.entity';
+import { OrderService } from '@domain/order/services/order.service';
 import {
   CHARGE_PROVIDER_TOKEN,
   ChargeRequest,
@@ -7,7 +7,7 @@ import {
   IChargeProvider,
   PaymentMethod as IntegrationPaymentMethod,
 } from '@integration/charge/interfaces/charge-provider.interface';
-import { Injectable, Inject, Logger, forwardRef } from '@nestjs/common';
+import { Inject, Injectable, Logger, forwardRef } from '@nestjs/common';
 import { Transactional } from 'typeorm-transactional';
 import { Subscription, SubscriptionStatus } from '../entities/subscription.entity';
 import { SubscriptionService } from '../subscription.service';
@@ -81,7 +81,12 @@ export class RecurringBillingService {
 
     const chargeResponse = await this.chargeProvider.charge(chargeRequest);
 
-    // Usa OrderService para criar Order e Transaction
+    // Passo 1: Cria SubscriptionPeriod primeiro (status PENDING)
+    // O Order ainda não existe, então precisamos criar um temporário ou fazer diferente
+    // Na verdade, precisamos criar o Order primeiro para poder vincular o período
+    // Mas o status inicial será PENDING até o gateway confirmar
+
+    // Cria Order e Transaction primeiro
     const { order, transaction } = await this.orderService.createRecurringOrder(
       subscription.customer.id,
       Number(subscription.price),
@@ -89,18 +94,20 @@ export class RecurringBillingService {
       chargeResponse,
     );
 
-    // Cria novo período na subscription
-    await this.subscriptionService.createPeriod(subscription, transaction);
+    // Cria novo período na subscription vinculado ao order
+    await this.subscriptionService.createPeriod(subscription, order, Number(subscription.price));
 
-    // Atualiza status da subscription
+    // Passo 3: Se o pagamento já foi confirmado imediatamente, atualiza agora
+    // Caso contrário, o webhook do gateway irá atualizar quando o pagamento for processado
     if (chargeResponse.status === ChargeStatus.PAID) {
+      // Pagamento já foi confirmado, atualiza imediatamente
       await this.subscriptionService.updateStatus(subscription.id, SubscriptionStatus.ACTIVE);
-      // Atualiza próxima data de cobrança
       await this.subscriptionService.updateNextBillingDate(subscription.id);
-    } else {
-      // Se falhou, marca como PAST_DUE
+    } else if (chargeResponse.status === ChargeStatus.FAILED || chargeResponse.status === ChargeStatus.REFUSED) {
+      // Falha imediata, marca como PAST_DUE
       await this.subscriptionService.updateStatus(subscription.id, SubscriptionStatus.PAST_DUE);
     }
+    // Se for CREATED ou PROCESSING, mantém PENDING e aguarda webhook atualizar
 
     return {
       subscriptionId: subscription.id,

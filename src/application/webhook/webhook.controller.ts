@@ -2,6 +2,7 @@ import { WebhookPayloadDto } from './dto/webhook-payload.dto';
 import { WebhookService } from './webhook.service';
 import { Body, Controller, HttpCode, HttpStatus, Post } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { Public } from '@infra/decorator/public.decorator';
 
 @ApiTags('webhooks')
 @Controller('webhooks')
@@ -9,6 +10,7 @@ export class WebhookController {
   constructor(private readonly webhookService: WebhookService) {}
 
   @Post('payment')
+  @Public()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Payment webhook',
