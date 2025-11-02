@@ -1,4 +1,4 @@
-import { config } from '@config/database.config';
+import { config } from '@src/infra/configuration/configs/database.config';
 import { DataSource, DataSourceOptions } from 'typeorm';
 
 interface DatabaseConfig {
