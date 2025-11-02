@@ -234,6 +234,7 @@ describe('RecurringBillingService & Scheduler - Integration', () => {
   describe('RecurringBillingService.processSubscriptionBilling', () => {
     it(
       'should process subscription billing successfully with PAID charge',
+      // eslint-disable-next-line complexity
       runWithRollbackTransaction(async () => {
         const subscription = await fixtures.fixtures.subscriptions.activeMonthlyJohn();
         const customer = subscription.customer;

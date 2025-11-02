@@ -1,3 +1,5 @@
+import { Cart } from '@domain/cart/entities/cart.entity';
+import { CartItem } from '@domain/cart/entities/cart-item.entity';
 import { CartService } from '@src/domain/cart/services/cart.service';
 import { Customer } from '@domain/customer/entities/customer.entity';
 import { Order, OrderOrigin, OrderStatus, PaymentMethod } from '@domain/order/entities/order.entity';
@@ -8,11 +10,12 @@ import { SubscriptionService } from '@src/domain/subscription/services/subscript
 import {
   CHARGE_PROVIDER_TOKEN,
   ChargeRequest,
+  ChargeResponse,
   ChargeStatus,
   IChargeProvider,
   PaymentMethod as IntegrationPaymentMethod,
 } from '@integration/charge/interfaces/charge-provider.interface';
-import { Inject, Injectable, Logger, NotFoundException, forwardRef } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, Logger, NotFoundException, forwardRef } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Transactional } from 'typeorm-transactional';
@@ -39,6 +42,33 @@ export class OrderService {
     cartId: string,
     paymentMethod: PaymentMethod,
   ): Promise<{ order: Order; subscriptionIds: string[] }> {
+    const { customer, cart } = await this.validateOrderCreation(customerId, cartId);
+
+    const existingOrder = await this.findOrCreateOrder(customer, cart, cartId, paymentMethod);
+
+    if (this.hasActiveTransaction(existingOrder)) {
+      throw new BadRequestException('Order already has an active transaction');
+    }
+
+    const savedOrder = await this.orderRepository.save(existingOrder);
+
+    const chargeResponse = await this.processPayment(customer, cart, paymentMethod);
+    const updatedOrder = await this.updateOrderStatus(savedOrder, chargeResponse.status);
+
+    await this.createTransaction(updatedOrder, chargeResponse, cart.total);
+
+    const orderWithTransactions = await this.getOrderWithTransactions(updatedOrder.id);
+    const subscriptionIds = await this.createSubscriptionsForCart(
+      cart,
+      customer,
+      orderWithTransactions,
+      chargeResponse.status,
+    );
+
+    return { order: updatedOrder, subscriptionIds };
+  }
+
+  private async validateOrderCreation(customerId: string, cartId: string): Promise<{ customer: Customer; cart: Cart }> {
     const customer = await this.customerRepository.findOne({
       where: { id: customerId },
       relations: ['user'],
@@ -58,50 +88,59 @@ export class OrderService {
       throw new NotFoundException('Cart does not belong to customer');
     }
 
+    return { customer, cart };
+  }
+
+  private async findOrCreateOrder(
+    customer: Customer,
+    cart: Cart,
+    cartId: string,
+    paymentMethod: PaymentMethod,
+  ): Promise<Order> {
     const existingOrder = await this.orderRepository.findOne({
       where: { cart: { id: cartId }, deletedAt: null },
       relations: ['cart', 'customer', 'transactions'],
     });
 
     if (existingOrder) {
-      const hasActiveTransaction = existingOrder.transactions?.some(
-        t => (t.status === TransactionStatus.PROCESSING || t.status === TransactionStatus.CREATED) && !t.deletedAt,
-      );
-
-      if (hasActiveTransaction) {
-        return { order: existingOrder, subscriptionIds: [] };
-      }
-
-      existingOrder.status = OrderStatus.PENDING;
-      existingOrder.paymentMethod = paymentMethod;
-      existingOrder.total = cart.total;
-      existingOrder.origin = OrderOrigin.CART;
+      return existingOrder;
     }
 
-    const order = existingOrder
-      ? existingOrder
-      : this.orderRepository.create({
-          customer,
-          cart,
-          total: cart.total,
-          status: OrderStatus.PENDING,
-          paymentMethod,
-          origin: OrderOrigin.CART,
-        });
+    return this.orderRepository.create({
+      customer,
+      cart,
+      total: cart.total,
+      status: OrderStatus.PENDING,
+      paymentMethod,
+      origin: OrderOrigin.CART,
+    });
+  }
 
-    const savedOrder = await this.orderRepository.save(order);
+  private hasActiveTransaction(order: Order): boolean {
+    return (
+      order.transactions?.some(
+        t => (t.status === TransactionStatus.PROCESSING || t.status === TransactionStatus.CREATED) && !t.deletedAt,
+      ) ?? false
+    );
+  }
 
-    const chargeRequest: ChargeRequest = {
+  private buildChargeRequest(customer: Customer, cart: Cart, paymentMethod: PaymentMethod): ChargeRequest {
+    return {
       amount: Number(cart.total),
       currency: 'BRL',
       paymentMethod: this.mapPaymentMethodToIntegration(paymentMethod),
-      reference: cartId,
+      reference: cart.id,
       customerEmail: customer.user?.email,
       customerName: customer.user?.name,
     };
+  }
 
-    const chargeResponse = await this.chargeProvider.charge(chargeRequest);
+  private async processPayment(customer: Customer, cart: Cart, paymentMethod: PaymentMethod): Promise<ChargeResponse> {
+    const chargeRequest = this.buildChargeRequest(customer, cart, paymentMethod);
+    return await this.chargeProvider.charge(chargeRequest);
+  }
 
+  private mapChargeStatusToOrderStatus(chargeStatus: ChargeStatus): OrderStatus {
     const statusMapping: Record<ChargeStatus, OrderStatus> = {
       [ChargeStatus.PAID]: OrderStatus.CONFIRMED,
       [ChargeStatus.REFUSED]: OrderStatus.FAILED,
@@ -110,64 +149,90 @@ export class OrderService {
       [ChargeStatus.PROCESSING]: OrderStatus.PENDING,
     };
 
-    savedOrder.status = statusMapping[chargeResponse.status];
+    return statusMapping[chargeStatus];
+  }
 
-    const updatedOrder = await this.orderRepository.save(savedOrder);
+  private async updateOrderStatus(order: Order, chargeStatus: ChargeStatus): Promise<Order> {
+    order.status = this.mapChargeStatusToOrderStatus(chargeStatus);
+    return await this.orderRepository.save(order);
+  }
 
+  private async createTransaction(order: Order, chargeResponse: ChargeResponse, cartTotal: number): Promise<void> {
     const transaction = this.transactionRepository.create({
       transactionId: chargeResponse.transactionId,
       status: this.mapChargeStatusToTransactionStatus(chargeResponse.status),
-      amount: Number(cart.total),
-      currency: chargeRequest.currency,
+      amount: Number(cartTotal),
+      currency: 'BRL',
       message: chargeResponse.message,
       processingTime: chargeResponse.processingTime,
-      order: updatedOrder,
+      order,
     });
 
     await this.transactionRepository.save(transaction);
+  }
 
-    const orderWithTransactions = await this.orderRepository.findOne({
-      where: { id: updatedOrder.id },
+  private async getOrderWithTransactions(orderId: string): Promise<Order> {
+    const order = await this.orderRepository.findOne({
+      where: { id: orderId },
       relations: ['transactions'],
     });
 
+    if (!order) {
+      throw new NotFoundException('Order not found');
+    }
+
+    return order;
+  }
+
+  private shouldCreateSubscriptions(cart: Cart, chargeStatus: ChargeStatus): boolean {
     const hasSubscriptionProducts = cart.items?.some(item => item.product?.type === ProductType.SUBSCRIPTION);
+    const isChargeProcessable =
+      chargeStatus === ChargeStatus.PAID ||
+      chargeStatus === ChargeStatus.CREATED ||
+      chargeStatus === ChargeStatus.PROCESSING;
+
+    return Boolean(hasSubscriptionProducts && cart.items && isChargeProcessable);
+  }
+
+  private async createSubscriptionsForCart(
+    cart: Cart,
+    customer: Customer,
+    order: Order,
+    chargeStatus: ChargeStatus,
+  ): Promise<string[]> {
+    if (!this.shouldCreateSubscriptions(cart, chargeStatus)) {
+      return [];
+    }
+
+    const subscriptionItems = cart.items.filter(
+      item => item.product?.type === ProductType.SUBSCRIPTION && item.product.periodicity,
+    );
 
     const subscriptionIds: string[] = [];
-    const shouldCreateSubscriptions =
-      hasSubscriptionProducts &&
-      cart.items &&
-      (chargeResponse.status === ChargeStatus.PAID ||
-        chargeResponse.status === ChargeStatus.CREATED ||
-        chargeResponse.status === ChargeStatus.PROCESSING);
 
-    if (shouldCreateSubscriptions) {
-      const subscriptionItems = cart.items.filter(
-        item => item.product?.type === ProductType.SUBSCRIPTION && item.product.periodicity,
-      );
-
-      for (const item of subscriptionItems) {
-        if (item.product?.periodicity) {
-          try {
-            const subscriptionPeriodicity = this.mapProductPeriodicityToSubscriptionPeriodicity(
-              item.product.periodicity,
-            );
-            const subscription = await this.subscriptionService.create(
-              customer,
-              item.product,
-              Number(item.price),
-              subscriptionPeriodicity,
-              orderWithTransactions,
-            );
-            subscriptionIds.push(subscription.id);
-          } catch (error) {
-            Logger.warn(`Failed to create subscription for product ${item.product.id}: ${error.message}`);
-          }
+    for (const item of subscriptionItems) {
+      if (item.product?.periodicity) {
+        try {
+          const subscription = await this.createSubscriptionForItem(customer, item, order);
+          subscriptionIds.push(subscription.id);
+        } catch (error) {
+          Logger.warn(`Failed to create subscription for product ${item.product.id}: ${error.message}`);
         }
       }
     }
 
-    return { order: updatedOrder, subscriptionIds };
+    return subscriptionIds;
+  }
+
+  private async createSubscriptionForItem(customer: Customer, item: CartItem, order: Order) {
+    const subscriptionPeriodicity = this.mapProductPeriodicityToSubscriptionPeriodicity(item.product.periodicity);
+    return await this.subscriptionService.create(
+      customer,
+      item.product,
+      Number(item.price),
+      subscriptionPeriodicity,
+      order,
+    );
   }
 
   async findOneOrFail(id: string): Promise<Order> {
