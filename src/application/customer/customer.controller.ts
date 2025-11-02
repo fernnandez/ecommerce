@@ -16,7 +16,7 @@ import { CustomerService } from '@src/domain/customer/services/customer.service'
 import { CreateCustomerDto } from './dto/create-customer.dto';
 import { Customer } from '@domain/customer/entities/customer.entity';
 
-@ApiTags('customer')
+@ApiTags('customer - customers')
 @Controller('customer')
 export class CustomerController {
   constructor(private readonly customerService: CustomerService) {}

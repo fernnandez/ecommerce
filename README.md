@@ -269,6 +269,91 @@ curl -X POST http://localhost:3000/api/webhooks/test/simulate \
    - A transaction será atualizada para `PAID`
    - Se houver produtos de assinatura, subscriptions serão criadas
 
+## ⚙️ Acionar Motor de Cobrança Recorrente (Manual)
+
+O motor de cobrança recorrente processa automaticamente assinaturas vencidas diariamente às 00:00, mas também pode ser acionado manualmente via endpoint (apenas para usuários Admin).
+
+**POST** `/api/subscription/process-billing`
+
+**Autenticação:**
+- Requer token JWT de usuário com role `ADMIN`
+
+**💡 Dados de Teste (Fixtures):**
+
+Ao rodar o projeto com `npm run db:reload:dev`, o banco é populado com dados de exemplo incluindo:
+
+- **Usuário Admin**: `admin@system.com` (senha: `password123`)
+- **Assinaturas disponíveis para teste**:
+  - `activeMonthlySubscriptionJohn` - Status: `ACTIVE`, Next Billing: `2024-12-01`
+    - Subscription ID: `SUB-001-JOHN-MONTHLY`
+    - Cliente: John Silva (`john.silva@email.com`)
+  - `pastDueYearlySubscriptionPeter` - Status: `PAST_DUE`, Next Billing: `2024-10-30` (vencida)
+    - Subscription ID: `SUB-003-PETER-YEARLY`
+    - Cliente: Peter Santos (`peter.santos@email.com`)
+    - ⚠️ Esta assinatura não será processada pelo motor porque tem status `PAST_DUE` (apenas `ACTIVE` são processadas)
+
+**Exemplo completo de teste:**
+
+1. **Fazer login como Admin:**
+```bash
+curl -X POST http://localhost:3000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "admin@system.com",
+    "password": "password123"
+  }'
+```
+
+2. **Copiar o `accessToken` da resposta e usar no endpoint de cobrança:**
+```bash
+curl -X POST http://localhost:3000/api/subscription/process-billing \
+  -H "Authorization: Bearer seu-admin-token-jwt" \
+  -H "Content-Type: application/json"
+```
+
+**Resposta de sucesso:**
+```json
+{
+  "processed": 3,
+  "successful": 2,
+  "failed": 1,
+  "results": [
+    {
+      "subscriptionId": "uuid-1",
+      "success": true,
+      "orderId": "order-uuid-1",
+      "transactionId": "tx_123456"
+    },
+    {
+      "subscriptionId": "uuid-2",
+      "success": true,
+      "orderId": "order-uuid-2",
+      "transactionId": "tx_789012"
+    },
+    {
+      "subscriptionId": "uuid-3",
+      "success": false,
+      "error": "Payment failed"
+    }
+  ]
+}
+```
+
+**O que acontece quando o endpoint é chamado:**
+1. Busca todas as assinaturas com `status = ACTIVE` e `nextBillingDate <= hoje`
+2. Para cada assinatura vencida:
+   - Cria uma nova transação e pedido
+   - Processa o pagamento via gateway (mockado)
+   - Atualiza status da assinatura:
+     - `ACTIVE` se pagamento bem-sucedido
+     - `PAST_DUE` se pagamento falhar
+   - Cria novo período na assinatura
+   - Atualiza `nextBillingDate` se bem-sucedido
+
+**Nota:** Este endpoint é idempotente e seguro para chamadas múltiplas. Se uma assinatura já foi processada recentemente, ela será processada novamente apenas se sua `nextBillingDate` estiver vencida.
+
+**⚠️ Importante:** Note que o endpoint processa apenas assinaturas com status `ACTIVE`. A assinatura `pastDueYearlySubscriptionPeter` nas fixtures tem status `PAST_DUE`, então não será processada automaticamente. Para testar com ela, você precisaria primeiro atualizar seu status para `ACTIVE` no banco de dados.
+
 ## 📁 Estrutura do Projeto
 
 ```
@@ -326,9 +411,14 @@ ecommerce/
 
 ### Pedidos
 - `GET /api/order` - Listar pedidos do cliente autenticado
+- `GET /api/order/admin/all` - Listar todas as pedidos (Admin) ⚠️
+- `GET /api/order/admin/:id` - Obter pedido por ID (Admin)
 
 ### Assinaturas
 - `GET /api/subscription` - Listar assinaturas do cliente autenticado
+- `GET /api/subscription/admin/all` - Listar todas as assinaturas (Admin) ⚠️
+- `GET /api/subscription/admin/:id` - Obter assinatura por ID (Admin)
+- `POST /api/subscription/process-billing` - Forçar cobrança de assinaturas vencidas (Admin)
 
 ### Webhooks
 - `POST /api/webhooks/payment` - Receber webhook de pagamento
@@ -392,6 +482,17 @@ Os testes usam um banco de dados separado (definido via `NODE_ENV=test`). Certif
 - O gateway de pagamento é **mockado** (não realiza cobranças reais)
 - As fixtures são carregadas automaticamente com dados de exemplo
 - O scheduler de cobrança recorrente roda diariamente às 00:00
+- O motor de cobrança pode ser acionado manualmente via endpoint `POST /api/subscription/process-billing` (apenas Admin)
+
+### ⚠️ Rotas `/admin/all` - Disclaimer
+
+As rotas `GET /api/order/admin/all` e `GET /api/subscription/admin/all` **não estão otimizadas** para produção, pois foram implementadas a fins de **teste e homologação**. Estas rotas realizam consultas sem paginação e podem retornar grandes volumes de dados, impactando a performance em cenários com muitos registros.
+
+**Recomendação:** Para uso em produção, estas rotas devem ser otimizadas com:
+- Paginação (page, limit, offset)
+- Filtros e busca
+- Índices adequados no banco de dados
+- Cache layer quando apropriado
 
 ## 🚀 Implementações Futuras
 

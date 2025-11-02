@@ -84,9 +84,15 @@ Quando o limite é excedido, a API retorna:
     )
     .addTag('health', 'Health check endpoints')
     .addTag('auth', 'Authentication endpoints')
-    .addTag('customer', 'Customer management endpoints')
-    .addTag('cart', 'Cart management endpoints')
+    .addTag('admin - products', 'Product management (Admin only)')
+    .addTag('admin - orders', 'Order management (Admin only)')
+    .addTag('admin - subscriptions', 'Subscription billing management (Admin only)')
     .addTag('webhooks', 'Webhook endpoints')
+    .addTag('customer - products', 'Product viewing (Customer)')
+    .addTag('customer - customers', 'Customer management endpoints')
+    .addTag('customer - cart', 'Cart management endpoints')
+    .addTag('customer - orders', 'Order management endpoints')
+    .addTag('customer - subscriptions', 'Subscription viewing endpoints')
     .build();
 
   const document = SwaggerModule.createDocument(app, config);

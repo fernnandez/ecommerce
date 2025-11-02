@@ -8,7 +8,7 @@ import { CartResponse } from './dto/cart-response.dto';
 import { CheckoutResponseDto as CheckoutResponseDtoType } from './dto/checkout-response.dto';
 import { CheckoutDto } from './dto/checkout.dto';
 
-@ApiTags('cart')
+@ApiTags('customer - cart')
 @ApiBearerAuth('JWT-auth')
 @Controller('cart')
 export class CartController {

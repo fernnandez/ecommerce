@@ -4,7 +4,7 @@ import { TransactionStatus } from '@domain/order/entities/transaction.entity';
 import { Product } from '@domain/product/entities/product.entity';
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { Transactional } from 'typeorm-transactional';
 import { PeriodStatus, SubscriptionPeriod } from '../entities/subscription-period.entity';
 import { Periodicity, Subscription, SubscriptionStatus } from '../entities/subscription.entity';
@@ -202,7 +202,7 @@ export class SubscriptionService {
 
     const subscriptions = await this.subscriptionRepository.find({
       where: {
-        status: SubscriptionStatus.ACTIVE,
+        status: In([SubscriptionStatus.PAST_DUE, SubscriptionStatus.ACTIVE]),
         deletedAt: null,
       },
       relations: ['customer', 'customer.user', 'product', 'periods'],
@@ -219,6 +219,15 @@ export class SubscriptionService {
     return await this.subscriptionRepository.find({
       where: { customer: { id: customerId }, deletedAt: null },
       relations: ['customer', 'product', 'periods', 'periods.order'],
+      order: { createdAt: 'DESC' },
+    });
+  }
+
+  async findAll(nested: boolean = true): Promise<Subscription[]> {
+    const relations = nested ? ['customer', 'product', 'periods', 'periods.order'] : [];
+    return await this.subscriptionRepository.find({
+      where: { deletedAt: null },
+      relations,
       order: { createdAt: 'DESC' },
     });
   }

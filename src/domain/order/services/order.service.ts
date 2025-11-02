@@ -256,6 +256,15 @@ export class OrderService {
     });
   }
 
+  async findAll(nested: boolean = true): Promise<Order[]> {
+    const relations = nested ? ['customer', 'cart', 'transactions'] : [];
+    return await this.orderRepository.find({
+      where: { deletedAt: null },
+      relations,
+      order: { createdAt: 'DESC' },
+    });
+  }
+
   async updateStatus(id: string, status: OrderStatus): Promise<Order> {
     const order = await this.findOneOrFail(id);
     order.status = status;

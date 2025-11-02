@@ -1,13 +1,12 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, HttpCode, HttpStatus } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBody, ApiParam, ApiBearerAuth } from '@nestjs/swagger';
-import { Roles } from '@infra/auth/decorators/roles.decorator';
-import { UserRole } from '@domain/user/entities/user.entity';
-import { ProductService } from '@src/domain/product/services/product.service';
 import { Product } from '@domain/product/entities/product.entity';
+import { UserRole } from '@domain/user/entities/user.entity';
+import { Roles } from '@infra/auth/decorators/roles.decorator';
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post } from '@nestjs/common';
+import { ApiBearerAuth, ApiBody, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ProductService } from '@src/domain/product/services/product.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 
-@ApiTags('product')
 @ApiBearerAuth('JWT-auth')
 @Controller('product')
 export class ProductController {
@@ -15,6 +14,7 @@ export class ProductController {
 
   @Post()
   @Roles(UserRole.ADMIN)
+  @ApiTags('admin - products')
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({
     summary: 'Create a new product',
@@ -39,6 +39,7 @@ export class ProductController {
   }
 
   @Get()
+  @ApiTags('admin - products', 'customer - products')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'List all products',
@@ -57,35 +58,13 @@ export class ProductController {
     return await this.productService.findAll();
   }
 
-  @Get(':id')
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({
-    summary: 'Get product by ID',
-    description: 'Returns a specific product by its ID. Requires authentication.',
-  })
-  @ApiParam({ name: 'id', description: 'Product UUID' })
-  @ApiResponse({
-    status: 200,
-    description: 'Product retrieved successfully',
-    type: Product,
-  })
-  @ApiResponse({
-    status: 401,
-    description: 'Unauthorized',
-  })
-  @ApiResponse({
-    status: 404,
-    description: 'Product not found',
-  })
-  async findOneOrFail(@Param('id') id: string): Promise<Product> {
-    return await this.productService.findOneOrFail(id);
-  }
-
   @Patch(':id')
+  @Roles(UserRole.ADMIN)
+  @ApiTags('admin - products')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Update product',
-    description: 'Updates an existing product. Requires authentication.',
+    description: 'Updates an existing product. Requires ADMIN role.',
   })
   @ApiParam({ name: 'id', description: 'Product UUID' })
   @ApiBody({ type: UpdateProductDto })
@@ -111,10 +90,12 @@ export class ProductController {
   }
 
   @Delete(':id')
+  @Roles(UserRole.ADMIN)
+  @ApiTags('admin - products')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({
     summary: 'Delete product',
-    description: 'Soft deletes a product. Requires authentication.',
+    description: 'Soft deletes a product. Requires ADMIN role.',
   })
   @ApiParam({ name: 'id', description: 'Product UUID' })
   @ApiResponse({
