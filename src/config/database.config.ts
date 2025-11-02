@@ -7,9 +7,7 @@ export const config: TypeOrmModuleOptions = {
   url: process.env.DATABASE_URL,
   autoLoadEntities: true,
   logging: process.env.DATABASE_LOGGING === 'true',
-  logger:
-    (process.env.DATABASE_LOGGER as TypeOrmModuleOptions['logger']) ||
-    'advanced-console',
+  logger: (process.env.DATABASE_LOGGER as TypeOrmModuleOptions['logger']) || 'advanced-console',
   synchronize: true,
   migrationsRun: (process.env.DATABASE_MIGRATION_RUN || 'true') === 'true',
   migrations: [`${__dirname}/../infra/database/migrations/**/*{.ts,.js}`],
