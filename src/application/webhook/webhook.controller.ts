@@ -1,8 +1,9 @@
 import { WebhookPayloadDto } from './dto/webhook-payload.dto';
 import { WebhookService } from './webhook.service';
-import { Body, Controller, HttpCode, HttpStatus, Post } from '@nestjs/common';
-import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { Body, Controller, HttpCode, HttpStatus, Post, UseGuards } from '@nestjs/common';
+import { ApiOperation, ApiResponse, ApiTags, ApiSecurity } from '@nestjs/swagger';
 import { Public } from '@infra/decorator/public.decorator';
+import { WebhookAuthGuard } from '@infra/auth/guards/webhook-auth.guard';
 
 @ApiTags('webhooks')
 @Controller('webhooks')
@@ -10,11 +11,14 @@ export class WebhookController {
   constructor(private readonly webhookService: WebhookService) {}
 
   @Post('payment')
-  @Public()
+  @Public() // Bypass JWT auth, usa apenas WebhookAuthGuard
+  @UseGuards(WebhookAuthGuard)
   @HttpCode(HttpStatus.OK)
+  @ApiSecurity('webhook-secret')
   @ApiOperation({
     summary: 'Payment webhook',
-    description: 'Receives payment webhook events from payment gateway. Handles payment_success, payment_failed, and payment_pending events.',
+    description:
+      'Receives payment webhook events from payment gateway. Requires X-Webhook-Secret header or Bearer token. Handles payment_success, payment_failed, and payment_pending events.',
   })
   @ApiResponse({
     status: 200,
@@ -23,6 +27,10 @@ export class WebhookController {
   @ApiResponse({
     status: 400,
     description: 'Invalid webhook payload',
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized - Invalid or missing webhook secret',
   })
   @ApiResponse({
     status: 404,

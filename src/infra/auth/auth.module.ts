@@ -7,6 +7,7 @@ import { User } from '@domain/user/entities/user.entity';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RolesGuard } from './guards/roles.guard';
+import { WebhookAuthGuard } from './guards/webhook-auth.guard';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { RolesGuard } from './guards/roles.guard';
     JwtStrategy,
     JwtAuthGuard,
     RolesGuard,
+    WebhookAuthGuard,
     {
       provide: APP_GUARD,
       useClass: JwtAuthGuard,
@@ -39,7 +41,7 @@ import { RolesGuard } from './guards/roles.guard';
       useClass: RolesGuard,
     },
   ],
-  exports: [JwtModule, JwtAuthGuard, RolesGuard],
+  exports: [JwtModule, JwtAuthGuard, RolesGuard, WebhookAuthGuard],
 })
 export class AuthModule {}
 

@@ -10,4 +10,5 @@ export default Joi.object({
   JWT_EXPIRES_IN: Joi.string().default('24h'),
   JWT_REFRESH_SECRET: Joi.string().optional(),
   JWT_REFRESH_EXPIRES_IN: Joi.string().default('7d'),
+  WEBHOOK_SECRET: Joi.string().required(),
 });

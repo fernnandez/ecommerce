@@ -1,13 +1,13 @@
 import { Order } from '@domain/order/entities/order.entity';
 import { Transaction } from '@domain/order/entities/transaction.entity';
-import { Body, Controller, HttpCode, HttpStatus, Post, NotFoundException } from '@nestjs/common';
+import { Body, Controller, HttpCode, HttpStatus, NotFoundException, Post } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { WebhookEventType, WebhookPayloadDto } from './dto/webhook-payload.dto';
-import { TestWebhookDto } from './dto/test-webhook.dto';
-import { WebhookService } from './webhook.service';
 import { Public } from '@src/infra/decorator/public.decorator';
+import { Repository } from 'typeorm';
+import { TestWebhookDto } from './dto/test-webhook.dto';
+import { WebhookPayloadDto } from './dto/webhook-payload.dto';
+import { WebhookService } from './webhook.service';
 
 @Public()
 @ApiTags('webhooks')
