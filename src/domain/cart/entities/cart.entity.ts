@@ -4,6 +4,7 @@ import {
   CreateDateColumn,
   DeleteDateColumn,
   Entity,
+  Index,
   JoinColumn,
   ManyToOne,
   OneToMany,
@@ -18,6 +19,8 @@ export enum CartStatus {
 }
 
 @Entity('cart')
+@Index(['customer', 'status'])
+@Index(['status'])
 export class Cart {
   @PrimaryGeneratedColumn('uuid')
   id: string;

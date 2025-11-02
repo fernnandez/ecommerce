@@ -5,6 +5,7 @@ import {
   CreateDateColumn,
   DeleteDateColumn,
   Entity,
+  Index,
   JoinColumn,
   ManyToOne,
   OneToMany,
@@ -27,6 +28,11 @@ export enum Periodicity {
 }
 
 @Entity('subscription')
+@Index(['customer'])
+@Index(['status'])
+@Index(['customer', 'status'])
+@Index(['nextBillingDate'])
+@Index(['status', 'nextBillingDate'])
 export class Subscription {
   @PrimaryGeneratedColumn('uuid')
   id: string;

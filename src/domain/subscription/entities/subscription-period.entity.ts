@@ -1,15 +1,16 @@
-import { Subscription } from './subscription.entity';
 import { Order } from '@domain/order/entities/order.entity';
 import {
   Column,
   CreateDateColumn,
   DeleteDateColumn,
   Entity,
+  Index,
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
+import { Subscription } from './subscription.entity';
 
 export enum PeriodStatus {
   PENDING = 'pending',
@@ -18,6 +19,11 @@ export enum PeriodStatus {
 }
 
 @Entity('subscription_period')
+@Index(['subscription'])
+@Index(['order'])
+@Index(['status'])
+@Index(['startDate', 'endDate'])
+@Index(['deletedAt'])
 export class SubscriptionPeriod {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -61,4 +67,3 @@ export class SubscriptionPeriod {
   @DeleteDateColumn()
   deletedAt: Date;
 }
-

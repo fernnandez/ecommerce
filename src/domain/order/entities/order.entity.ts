@@ -4,6 +4,7 @@ import {
   CreateDateColumn,
   DeleteDateColumn,
   Entity,
+  Index,
   JoinColumn,
   ManyToOne,
   OneToMany,
@@ -33,6 +34,9 @@ export enum OrderOrigin {
 }
 
 @Entity('order')
+@Index(['customer'])
+@Index(['status'])
+@Index(['customer', 'status'])
 export class Order {
   @PrimaryGeneratedColumn('uuid')
   id: string;

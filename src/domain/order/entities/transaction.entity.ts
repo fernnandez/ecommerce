@@ -3,6 +3,7 @@ import {
   CreateDateColumn,
   DeleteDateColumn,
   Entity,
+  Index,
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
@@ -19,6 +20,9 @@ export enum TransactionStatus {
 }
 
 @Entity('transaction')
+@Index(['order'])
+@Index(['status'])
+@Index(['order', 'status'])
 export class Transaction {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -57,4 +61,3 @@ export class Transaction {
   @DeleteDateColumn()
   deletedAt: Date;
 }
-

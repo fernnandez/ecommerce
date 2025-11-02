@@ -4,6 +4,7 @@ import {
   CreateDateColumn,
   DeleteDateColumn,
   Entity,
+  Index,
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
@@ -12,6 +13,8 @@ import {
 import { Cart } from './cart.entity';
 
 @Entity('cart_item')
+@Index(['cart', 'product'])
+@Index(['cart'])
 export class CartItem {
   @PrimaryGeneratedColumn('uuid')
   id: string;
