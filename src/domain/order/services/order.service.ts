@@ -1,5 +1,4 @@
 import { CartService } from '@domain/cart/cart.service';
-import { CustomerService } from '@domain/customer/customer.service';
 import { Customer } from '@domain/customer/entities/customer.entity';
 import { Order, OrderOrigin, OrderStatus, PaymentMethod } from '@domain/order/entities/order.entity';
 import { Transaction, TransactionStatus } from '@domain/order/entities/transaction.entity';
@@ -27,7 +26,6 @@ export class OrderService {
     private readonly transactionRepository: Repository<Transaction>,
     @InjectRepository(Customer)
     private readonly customerRepository: Repository<Customer>,
-    private readonly customerService: CustomerService,
     @Inject(forwardRef(() => CartService))
     private readonly cartService: CartService,
     @Inject(CHARGE_PROVIDER_TOKEN)
@@ -60,28 +58,36 @@ export class OrderService {
       throw new NotFoundException('Cart does not belong to customer');
     }
 
-    // TODO: VERIFICAR se já existe uma subscription ativa para o customer e o produto
-
-    let order = await this.orderRepository.findOne({
+    const existingOrder = await this.orderRepository.findOne({
       where: { cart: { id: cartId }, deletedAt: null },
-      relations: ['cart', 'customer'],
+      relations: ['cart', 'customer', 'transactions'],
     });
 
-    if (order) {
-      order.status = OrderStatus.PENDING;
-      order.paymentMethod = paymentMethod;
-      order.total = cart.total;
-      order.origin = OrderOrigin.CART;
-    } else {
-      order = this.orderRepository.create({
-        customer,
-        cart,
-        total: cart.total,
-        status: OrderStatus.PENDING,
-        paymentMethod,
-        origin: OrderOrigin.CART,
-      });
+    if (existingOrder) {
+      const hasActiveTransaction = existingOrder.transactions?.some(
+        t => (t.status === TransactionStatus.PROCESSING || t.status === TransactionStatus.CREATED) && !t.deletedAt,
+      );
+
+      if (hasActiveTransaction) {
+        return { order: existingOrder, subscriptionIds: [] };
+      }
+
+      existingOrder.status = OrderStatus.PENDING;
+      existingOrder.paymentMethod = paymentMethod;
+      existingOrder.total = cart.total;
+      existingOrder.origin = OrderOrigin.CART;
     }
+
+    const order = existingOrder
+      ? existingOrder
+      : this.orderRepository.create({
+          customer,
+          cart,
+          total: cart.total,
+          status: OrderStatus.PENDING,
+          paymentMethod,
+          origin: OrderOrigin.CART,
+        });
 
     const savedOrder = await this.orderRepository.save(order);
 
@@ -143,7 +149,9 @@ export class OrderService {
       for (const item of subscriptionItems) {
         if (item.product && item.product.periodicity) {
           try {
-            const subscriptionPeriodicity = this.mapProductPeriodicityToSubscriptionPeriodicity(item.product.periodicity);
+            const subscriptionPeriodicity = this.mapProductPeriodicityToSubscriptionPeriodicity(
+              item.product.periodicity,
+            );
             const subscription = await this.subscriptionService.create(
               customer,
               item.product,
@@ -227,7 +235,6 @@ export class OrderService {
       throw new NotFoundException('Customer not found');
     }
 
-    // Mapeia o status da cobrança para o status da order
     let orderStatus: OrderStatus;
     if (chargeResponse.status === ChargeStatus.PAID) {
       orderStatus = OrderStatus.CONFIRMED;
@@ -237,7 +244,6 @@ export class OrderService {
       orderStatus = OrderStatus.PENDING;
     }
 
-    // Cria novo Order para a cobrança recorrente
     const order = this.orderRepository.create({
       customer,
       total: amount,
@@ -248,7 +254,6 @@ export class OrderService {
 
     const savedOrder = await this.orderRepository.save(order);
 
-    // Cria a Transaction
     const transaction = this.transactionRepository.create({
       transactionId: chargeResponse.transactionId,
       status: this.mapChargeStatusToTransactionStatus(chargeResponse.status),

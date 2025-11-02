@@ -12,19 +12,6 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: test_password
       POSTGRES_DB: ecommerce_test
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d ecommerce_test"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-
-  redis-test:
-    image: redis:7.0
-    container_name: ecommerce-redis-test
-    ports:
-      - 6380:6379
-    networks:
-      - test-network
 
 networks:
   test-network:

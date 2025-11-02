@@ -1,98 +1,435 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# 🛒 E-commerce API
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+API completa para gerenciamento de e-commerce com suporte a produtos, carrinho de compras, pedidos, assinaturas e cobrança recorrente.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## 📋 Índice
 
-## Description
+- [Tecnologias](#-tecnologias)
+- [Funcionalidades](#-funcionalidades)
+- [Instalação](#-instalação)
+- [Configuração](#-configuração)
+- [Executando o Projeto](#-executando-o-projeto)
+- [Documentação Swagger](#-documentação-swagger)
+- [Simulando Webhooks](#-simulando-webhooks)
+- [Estrutura do Projeto](#-estrutura-do-projeto)
+- [Endpoints Principais](#-endpoints-principais)
+- [Comandos Úteis](#-comandos-úteis)
+- [Testes](#-testes)
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## 🚀 Tecnologias
 
-## Project setup
+- **NestJS** - Framework Node.js
+- **TypeORM** - ORM para TypeScript
+- **PostgreSQL** - Banco de dados relacional
+- **Redis** - Cache e sessões
+- **JWT** - Autenticação
+- **Swagger** - Documentação da API
+- **Docker** - Containerização
+- **TypeScript** - Linguagem principal
 
+## ✨ Funcionalidades
+
+- **Autenticação e Autorização**
+  - Login com JWT
+  - Proteção de rotas com guards
+  - Controle de acesso baseado em roles (Admin/Cliente)
+
+- **Gerenciamento de Produtos**
+  - CRUD completo de produtos
+  - Produtos únicos e de assinatura
+  - Controle por roles (apenas Admin)
+
+- **Carrinho de Compras**
+  - Abrir/fechar carrinho
+  - Adicionar/remover itens
+  - Cálculo automático de total
+
+- **Pedidos**
+  - Criação automática no checkout
+  - Gerenciamento de status (PENDING, CONFIRMED, FAILED, CANCELLED)
+  - Integração com gateway de pagamento mock
+
+- **Transações**
+  - Registro de todas as transações de pagamento
+  - Rastreamento de status (CREATED, PROCESSING, PAID, FAILED, REFUSED)
+  - Histórico completo
+
+- **Assinaturas**
+  - Criação de assinaturas para produtos recorrentes
+  - Gerenciamento de períodos
+  - Cobrança recorrente automática (via scheduler)
+
+- **Webhooks**
+  - Endpoint para receber eventos de pagamento
+  - Autenticação via `X-Webhook-Secret`
+  - Processamento de eventos: `payment_success`, `payment_failed`, `payment_pending`
+  - Endpoint de simulação para testes
+
+- **Rate Limiting**
+  - Proteção contra abuso de API
+  - 100 requisições por minuto por IP
+
+
+## 📦 Instalação
+
+### Pré-requisitos
+
+- Node.js >= 18.x
+- PostgreSQL >= 15.x
+- Docker e Docker Compose (opcional, para facilitar setup)
+
+### Passo a Passo
+
+1. **Clone o repositório**
+   ```bash
+   git clone <repository-url>
+   cd ecommerce
+   ```
+
+2. **Instale as dependências**
+   ```bash
+   npm install
+   ```
+
+3. **Configure as variáveis de ambiente**
+
+   Crie um arquivo `.env` na raiz do projeto:
+   ```env
+   NODE_ENV=development
+   DATABASE_URL=postgresql://postgres:postgres@localhost:5432/ecommerce
+   PORT=3000
+   JWT_SECRET=seu-jwt-secret-aqui
+   JWT_EXPIRES_IN=24h
+   WEBHOOK_SECRET=webhook-secret
+   ```
+
+4. **Inicie os serviços com Docker** (opcional, mas recomendado)
+   ```bash
+   docker-compose up -d
+   ```
+
+   Isso iniciará PostgreSQL e Redis automaticamente.
+
+   Ou inicie manualmente:
+   - PostgreSQL na porta 5432
+   - Redis na porta 6379
+
+5. **Configure o banco de dados**
+   ```bash
+   # Sincroniza o schema e carrega fixtures
+   npm run db:reload:dev
+   ```
+
+## 🔧 Configuração
+
+### Variáveis de Ambiente
+
+| Variável | Descrição | Obrigatório | Padrão |
+|----------|-----------|-------------|--------|
+| `NODE_ENV` | Ambiente (development/production/test) | Não | - |
+| `DATABASE_URL` | URL de conexão PostgreSQL | Sim | - |
+| `PORT` | Porta da aplicação | Não | 3000 |
+| `REDIS_HOST` | Host do Redis | Sim | - |
+| `REDIS_PORT` | Porta do Redis | Sim | - |
+| `JWT_SECRET` | Chave secreta para JWT | Sim | - |
+| `JWT_EXPIRES_IN` | Tempo de expiração do token | Não | 24h |
+| `WEBHOOK_SECRET` | Chave secreta para webhooks | Sim | - |
+
+## 🏃 Executando o Projeto
+
+### Desenvolvimento
 ```bash
-$ npm install
+npm run start:dev
 ```
 
-## Compile and run the project
+A aplicação estará disponível em `http://localhost:3000`
 
-```bash
-# development
-$ npm run start
 
-# watch mode
-$ npm run start:dev
+## 📚 Documentação Swagger
 
-# production mode
-$ npm run start:prod
+A documentação interativa da API está disponível em:
+
+**http://localhost:3000/api/docs**
+
+### Exemplo de Fluxo Completo no Swagger
+
+1. **Criar Cliente** (`POST /api/customer/create`)
+   ```json
+   {
+     "name": "João Silva",
+     "email": "joao@example.com",
+     "password": "senha123",
+     "cpf": "12345678900",
+     "phone": "11999999999"
+   }
+   ```
+
+2. **Fazer Login** (`POST /api/auth/login`)
+   ```json
+   {
+     "email": "joao@example.com",
+     "password": "senha123"
+   }
+   ```
+   - Copie o `accessToken` retornado
+
+3. **Autorizar no Swagger**
+   - Use o token copiado no botão "Authorize"
+
+4. **Criar Produto** (`POST /api/product`) - Requer role ADMIN
+   ```json
+   {
+     "name": "Plano Premium",
+     "description": "Plano mensal premium",
+     "price": 99.90,
+     "type": "subscription",
+     "periodicity": "monthly"
+   }
+   ```
+
+5. **Abrir Carrinho** (`POST /api/cart/open`)
+
+6. **Adicionar Item** (`POST /api/cart/items`)
+   ```json
+   {
+     "productId": "uuid-do-produto",
+     "quantity": 1
+   }
+   ```
+
+7. **Fazer Checkout** (`POST /api/cart/:id/checkout`)
+   ```json
+   {
+     "paymentMethod": "card"
+   }
+   ```
+
+## 🔔 Simulando Webhooks
+
+### Método 1: Endpoint de Simulação (Recomendado)
+
+Use o endpoint de simulação que constrói automaticamente o payload:
+
+**POST** `/api/webhooks/test/simulate`
+
+```json
+{
+  "transactionId": "transaction-id-do-gateway",
+  "event": "payment_success"
+}
 ```
 
-## Run tests
+**Eventos disponíveis:**
+- `payment_success` - Pagamento aprovado
+- `payment_failed` - Pagamento falhou
+- `payment_pending` - Pagamento pendente
 
-```bash
-# unit tests
-$ npm run test
+**Autenticação:**
+Este endpoint é público para fins de teste (não requer autenticação JWT).
 
-# e2e tests
-$ npm run test:e2e
+### Método 2: Endpoint Real de Webhook
 
-# test coverage
-$ npm run test:cov
+**POST** `/api/webhooks/payment`
+
+**Headers obrigatórios:**
+```
+X-Webhook-Secret: webhook-secret
 ```
 
-## Deployment
+ou
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
-
-```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+```
+Authorization: Bearer webhook-secret
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+**Payload:**
+```json
+{
+  "event": "payment_success",
+  "transactionId": "tx_123456789",
+  "orderId": "order-uuid",
+  "customerId": "customer-uuid",
+  "amount": 99.90,
+  "currency": "BRL",
+  "paymentMethod": "card",
+  "timestamp": "2024-01-15T10:30:00Z",
+  "metadata": {
+    "cartId": "cart-uuid"
+  }
+}
+```
 
-## Resources
+### Exemplo com cURL
 
-Check out a few resources that may come in handy when working with NestJS:
+```bash
+# Simulação simples
+curl -X POST http://localhost:3000/api/webhooks/test/simulate \
+  -H "Content-Type: application/json" \
+  -d '{
+    "transactionId": "tx_abc123",
+    "event": "payment_success"
+  }'
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+# Webhook real
+curl -X POST http://localhost:3000/api/webhooks/payment \
+  -H "Content-Type: application/json" \
+  -H "X-Webhook-Secret: webhook-secret" \
+  -d '{
+    "event": "payment_success",
+    "transactionId": "tx_123456789",
+    "orderId": "order-uuid-aqui",
+    "customerId": "customer-uuid-aqui",
+    "amount": 99.90,
+    "currency": "BRL",
+    "paymentMethod": "card",
+    "timestamp": "2024-01-15T10:30:00Z"
+  }'
+```
 
-## Support
+### Fluxo Completo de Teste
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+1. **Criar um pedido via checkout**
+   - Isso criará uma transaction com status inicial
 
-## Stay in touch
+2. **Obter o transactionId**
+   - Você pode buscar a transaction no banco ou via endpoint
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+3. **Simular webhook**
+   ```bash
+   curl -X POST http://localhost:3000/api/webhooks/test/simulate \
+     -H "Content-Type: application/json" \
+     -d '{
+       "transactionId": "seu-transaction-id",
+       "event": "payment_success"
+     }'
+   ```
 
-## License
+4. **Verificar resultado**
+   - A order será atualizada para `CONFIRMED`
+   - A transaction será atualizada para `PAID`
+   - Se houver produtos de assinatura, subscriptions serão criadas
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+## 📁 Estrutura do Projeto
+
+```
+ecommerce/
+├── src/
+│   ├── application/      # Camada de aplicação (Controllers)
+│   │   ├── auth/
+│   │   ├── cart/
+│   │   ├── customer/
+│   │   ├── product/
+│   │   └── webhook/
+│   ├── domain/           # Camada de domínio (Entities, Services)
+│   │   ├── cart/
+│   │   ├── customer/
+│   │   ├── order/
+│   │   ├── product/
+│   │   ├── subscription/
+│   │   └── user/
+│   ├── infra/            # Infraestrutura (Database, Auth, Config)
+│   │   ├── auth/
+│   │   ├── configuration/
+│   │   └── database/
+│   ├── integration/      # Integrações externas
+│   │   └── charge/
+│   └── config/           # Arquivos de configuração
+├── test/                 # Testes de integração
+│   ├── integration/
+│   └── helper/
+├── docker-compose.yml    # Configuração Docker
+└── package.json
+```
+
+## 🔌 Endpoints Principais
+
+### Autenticação
+- `POST /api/auth/login` - Login (público)
+- `GET /api/auth/me` - Obter perfil do usuário autenticado
+
+### Cliente
+- `POST /api/customer/create` - Criar cliente (público)
+
+### Carrinho
+- `POST /api/cart/open` - Abrir carrinho
+- `GET /api/cart` - Obter carrinho aberto
+- `POST /api/cart/items` - Adicionar item
+- `DELETE /api/cart/items/:itemId` - Remover item
+- `POST /api/cart/:id/checkout` - Finalizar compra
+- `POST /api/cart/close` - Fechar carrinho
+
+### Produtos
+- `POST /api/product` - Criar produto (Admin)
+- `GET /api/product` - Listar produtos
+- `GET /api/product/:id` - Obter produto
+- `PATCH /api/product/:id` - Atualizar produto (Admin)
+- `DELETE /api/product/:id` - Deletar produto (Admin)
+
+### Webhooks
+- `POST /api/webhooks/payment` - Receber webhook de pagamento
+- `POST /api/webhooks/test/simulate` - Simular webhook (público)
+
+## 🛠️ Comandos Úteis
+
+### Desenvolvimento
+```bash
+npm run start:dev          # Inicia em modo desenvolvimento
+npm run start:debug        # Inicia em modo debug
+npm run build               # Compila o projeto
+```
+
+### Banco de Dados
+```bash
+npm run db:reload:dev       # Recria schema e carrega fixtures
+npm run fixtures:load       # Carrega fixtures no banco
+npm run fixtures:reset     # Reseta banco e carrega fixtures
+```
+
+### Testes
+```bash
+npm test                    # Executa todos os testes
+npm run test:cov            # Executa testes com cobertura
+```
+
+## 🧪 Testes
+
+O projeto possui testes de integração para os principais fluxos:
+
+- Autenticação
+- Criação de clientes
+- Gerenciamento de carrinho
+- Criação de pedidos
+- Processamento de webhooks
+- Assinaturas e cobrança recorrente
+
+### Executar Testes
+```bash
+# Todos os testes
+npm test
+
+# Com cobertura
+npm run test:cov
+```
+
+### Configuração de Testes
+
+Os testes usam um banco de dados separado (definido via `NODE_ENV=test`). Certifique-se de que as variáveis de ambiente de teste estão configuradas corretamente.
+
+## 🔒 Segurança
+
+- **Rate Limiting**: 100 requisições/minuto por IP
+- **Autenticação JWT**: Tokens com expiração configurável
+- **Validação de Dados**: class-validator em todos os DTOs
+- **Proteção de Rotas**: Guards baseados em roles
+- **Webhook Auth**: Autenticação via header `X-Webhook-Secret`
+- **Proteção contra Duplicidade**: Verificação de transactions em processamento
+
+## 📝 Notas Importantes
+
+- O gateway de pagamento é **mockado** (não realiza cobranças reais)
+- As fixtures são carregadas automaticamente com dados de exemplo
+- O scheduler de cobrança recorrente roda diariamente às 00:00
+
+---
+
+**Desenvolvido por fernnandez**
