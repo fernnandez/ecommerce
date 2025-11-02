@@ -3,6 +3,7 @@ import { JwtPayload } from '@infra/auth/strategies/jwt.strategy';
 import { Public } from '@infra/decorator/public.decorator';
 import { CurrentUser } from '@infra/auth/decorators/current-user.decorator';
 import { Body, Controller, Get, HttpCode, HttpStatus, Post } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { JwtService } from '@nestjs/jwt';
 import { ApiBearerAuth, ApiBody, ApiOperation, ApiProperty, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { User } from '@domain/user/entities/user.entity';
@@ -47,6 +48,7 @@ export class AuthController {
 
   @Post('login')
   @Public()
+  @Throttle({ default: { limit: 5, ttl: 60000 } }) // 5 tentativas por minuto por IP
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'User login', description: 'Authenticate user and receive JWT token' })
   @ApiBody({ type: LoginDto })
@@ -58,6 +60,10 @@ export class AuthController {
   @ApiResponse({
     status: 401,
     description: 'Invalid credentials',
+  })
+  @ApiResponse({
+    status: 429,
+    description: 'Too many requests - Rate limit exceeded',
   })
   async login(@Body() loginDto: LoginDto): Promise<LoginResponse> {
     const user = await this.userService.validateUser(loginDto.email, loginDto.password);
