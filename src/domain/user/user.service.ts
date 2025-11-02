@@ -43,10 +43,6 @@ export class UserService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    if (user.deletedAt) {
-      throw new UnauthorizedException('User is deleted');
-    }
-
     const isPasswordValid = await bcrypt.compare(password, user.password);
 
     if (!isPasswordValid) {
