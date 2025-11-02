@@ -5,11 +5,22 @@ import globals from 'globals';
 
 export default tseslint.config(
   {
-    ignores: ['dist/**', 'node_modules/**', '*.js', 'coverage/**'],
+    ignores: [
+      'dist/**',
+      'node_modules/**',
+      '*.js',
+      '*.mjs',
+      'coverage/**',
+      'eslint.config.mjs',
+      'commitlint.config.js',
+      'jest.config.ts',
+      'nest-cli.json',
+    ],
   },
   eslint.configs.recommended,
   ...tseslint.configs.recommendedTypeChecked,
   {
+    files: ['**/*.ts'],
     languageOptions: {
       parserOptions: {
         project: ['./tsconfig.json', './tsconfig.test.json'],
