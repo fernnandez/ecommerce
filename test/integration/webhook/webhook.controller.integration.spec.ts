@@ -24,6 +24,7 @@ describe('WebhookController - Integration (HTTP)', () => {
   let transactionRepo: Repository<Transaction>;
 
   const baseUrl = '/webhooks';
+  const webhookSecret = process.env.WEBHOOK_SECRET || 'test-webhook-secret';
 
   beforeAll(async () => {
     app = await createTestingApp({
@@ -75,6 +76,7 @@ describe('WebhookController - Integration (HTTP)', () => {
 
         const response = await request(app.getHttpServer())
           .post(`${baseUrl}/payment`)
+          .set('X-Webhook-Secret', webhookSecret)
           .send(webhookPayload)
           .expect(200);
 
@@ -119,6 +121,7 @@ describe('WebhookController - Integration (HTTP)', () => {
 
         const response = await request(app.getHttpServer())
           .post(`${baseUrl}/payment`)
+          .set('X-Webhook-Secret', webhookSecret)
           .send(webhookPayload)
           .expect(200);
 
@@ -172,6 +175,7 @@ describe('WebhookController - Integration (HTTP)', () => {
 
         const response = await request(app.getHttpServer())
           .post(`${baseUrl}/payment`)
+          .set('X-Webhook-Secret', webhookSecret)
           .send(webhookPayload)
           .expect(200);
 
@@ -217,6 +221,7 @@ describe('WebhookController - Integration (HTTP)', () => {
 
         const response = await request(app.getHttpServer())
           .post(`${baseUrl}/payment`)
+          .set('X-Webhook-Secret', webhookSecret)
           .send(webhookPayload)
           .expect(200);
 
@@ -256,6 +261,7 @@ describe('WebhookController - Integration (HTTP)', () => {
 
         await request(app.getHttpServer())
           .post(`${baseUrl}/payment`)
+          .set('X-Webhook-Secret', webhookSecret)
           .send(webhookPayload)
           .expect(404);
       }),
@@ -280,6 +286,7 @@ describe('WebhookController - Integration (HTTP)', () => {
 
         await request(app.getHttpServer())
           .post(`${baseUrl}/payment`)
+          .set('X-Webhook-Secret', webhookSecret)
           .send(webhookPayload)
           .expect(404);
       }),
@@ -308,6 +315,7 @@ describe('WebhookController - Integration (HTTP)', () => {
         for (const payload of invalidPayloads) {
           await request(app.getHttpServer())
             .post(`${baseUrl}/payment`)
+            .set('X-Webhook-Secret', webhookSecret)
             .send(payload)
             .expect(400);
         }
@@ -336,6 +344,7 @@ describe('WebhookController - Integration (HTTP)', () => {
 
         await request(app.getHttpServer())
           .post(`${baseUrl}/payment`)
+          .set('X-Webhook-Secret', webhookSecret)
           .send(webhookPayload)
           .expect(400);
       }),
@@ -364,6 +373,7 @@ describe('WebhookController - Integration (HTTP)', () => {
 
         await request(app.getHttpServer())
           .post(`${baseUrl}/payment`)
+          .set('X-Webhook-Secret', webhookSecret)
           .send(webhookPayload)
           .expect(200);
       }),
@@ -395,6 +405,7 @@ describe('WebhookController - Integration (HTTP)', () => {
         // This should process successfully
         const response = await request(app.getHttpServer())
           .post(`${baseUrl}/payment`)
+          .set('X-Webhook-Secret', webhookSecret)
           .send(webhookPayload)
           .expect(200);
 
@@ -447,6 +458,7 @@ describe('WebhookController - Integration (HTTP)', () => {
 
         const response = await request(app.getHttpServer())
           .post(`${baseUrl}/payment`)
+          .set('X-Webhook-Secret', webhookSecret)
           .send(webhookPayload)
           .expect(200);
 

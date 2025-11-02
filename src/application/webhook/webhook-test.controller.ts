@@ -9,7 +9,6 @@ import { TestWebhookDto } from './dto/test-webhook.dto';
 import { WebhookPayloadDto } from './dto/webhook-payload.dto';
 import { WebhookService } from './webhook.service';
 
-@Public()
 @ApiTags('webhooks')
 @Controller('webhooks/test')
 export class WebhookTestController {
