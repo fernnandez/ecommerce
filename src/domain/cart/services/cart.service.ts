@@ -52,13 +52,10 @@ export class CartService {
   ) {}
 
   async openCart(customerId: string): Promise<CartResponseDto> {
-    const existingOpenCart = await this.cartRepository.findOne({
-      where: {
-        customer: { id: customerId },
-        status: CartStatus.OPEN,
-        deletedAt: null,
-      },
-      relations: ['items', 'items.product'],
+    const existingOpenCart = await this.findCartWithRelations({
+      customer: { id: customerId },
+      status: CartStatus.OPEN,
+      deletedAt: null,
     });
 
     if (existingOpenCart) {
@@ -75,22 +72,21 @@ export class CartService {
 
     const savedCart = await this.cartRepository.save(cart);
 
-    const cartWithRelations = await this.cartRepository.findOne({
-      where: { id: savedCart.id },
-      relations: ['items', 'items.product'],
-    });
+    // Busca o cart recém criado com todas as relações necessárias
+    const cartWithRelations = await this.findCartWithRelations({ id: savedCart.id });
+
+    if (!cartWithRelations) {
+      throw new NotFoundException('Failed to retrieve created cart');
+    }
 
     return this.mapCartToResponse(cartWithRelations);
   }
 
   async getOpenCart(customerId: string): Promise<CartResponseDto | null> {
-    const cart = await this.cartRepository.findOne({
-      where: {
-        customer: { id: customerId },
-        status: CartStatus.OPEN,
-        deletedAt: null,
-      },
-      relations: ['items', 'items.product'],
+    const cart = await this.findCartWithRelations({
+      customer: { id: customerId },
+      status: CartStatus.OPEN,
+      deletedAt: null,
     });
 
     if (!cart) {
@@ -101,13 +97,10 @@ export class CartService {
   }
 
   private async getOrCreateOpenCartEntity(customerId: string): Promise<Cart> {
-    const cart = await this.cartRepository.findOne({
-      where: {
-        customer: { id: customerId },
-        status: CartStatus.OPEN,
-        deletedAt: null,
-      },
-      relations: ['items', 'items.product'],
+    const cart = await this.findCartWithRelations({
+      customer: { id: customerId },
+      status: CartStatus.OPEN,
+      deletedAt: null,
     });
 
     if (cart) {
@@ -124,8 +117,28 @@ export class CartService {
 
     const savedCart = await this.cartRepository.save(newCart);
 
+    // Busca o cart recém criado com todas as relações necessárias
+    const cartWithRelations = await this.findCartWithRelations({ id: savedCart.id });
+
+    if (!cartWithRelations) {
+      throw new NotFoundException('Failed to retrieve created cart');
+    }
+
+    return cartWithRelations;
+  }
+
+  /**
+   * Helper method para buscar cart com todas as relações necessárias
+   * Evita duplicação de código e garante consistência
+   */
+  private async findCartWithRelations(where: {
+    id?: string;
+    customer?: { id: string };
+    status?: CartStatus;
+    deletedAt?: Date | null;
+  }): Promise<Cart | null> {
     return await this.cartRepository.findOne({
-      where: { id: savedCart.id },
+      where,
       relations: ['items', 'items.product'],
     });
   }
@@ -149,12 +162,8 @@ export class CartService {
       throw new BadRequestException('Subscription products can only have quantity of 1');
     }
 
-    const existingItem = await this.cartItemRepository.findOne({
-      where: {
-        cart: { id: cart.id },
-        product: { id: productId },
-      },
-    });
+    // Busca item existente diretamente no array de items já carregado
+    const existingItem = cart.items?.find(item => item.product?.id === productId);
 
     if (existingItem) {
       if (product.type === 'subscription') {
@@ -165,6 +174,8 @@ export class CartService {
 
       existingItem.quantity += quantity;
       await this.cartItemRepository.save(existingItem);
+      // Atualiza o array local para refletir a mudança
+      cart.items = cart.items || [];
     } else {
       const cartItem = this.cartItemRepository.create({
         cart,
@@ -173,36 +184,36 @@ export class CartService {
         price: product.price,
         periodicity: product.periodicity,
       });
-      await this.cartItemRepository.save(cartItem);
+      const savedItem = await this.cartItemRepository.save(cartItem);
+      // Adiciona o item ao array local para evitar query adicional
+      cart.items = [...(cart.items || []), savedItem];
     }
 
     await this.updateCartTotal(cart.id);
 
-    const cartWithRelations = await this.cartRepository.findOne({
-      where: { id: cart.id },
-      relations: ['items', 'items.product'],
-    });
+    // Recarrega o cart para garantir dados atualizados (total e items)
+    const updatedCart = await this.findCartWithRelations({ id: cart.id });
 
-    return this.mapCartToResponse(cartWithRelations);
+    if (!updatedCart) {
+      throw new NotFoundException('Failed to retrieve updated cart');
+    }
+
+    return this.mapCartToResponse(updatedCart);
   }
 
   async removeItem(customerId: string, itemId: string): Promise<CartResponseDto> {
-    const cart = await this.cartRepository.findOne({
-      where: {
-        customer: { id: customerId },
-        status: CartStatus.OPEN,
-        deletedAt: null,
-      },
-      relations: ['items', 'items.product'],
+    const cart = await this.findCartWithRelations({
+      customer: { id: customerId },
+      status: CartStatus.OPEN,
+      deletedAt: null,
     });
 
     if (!cart) {
       throw new NotFoundException('Open cart not found');
     }
 
-    const item = await this.cartItemRepository.findOne({
-      where: { id: itemId, cart: { id: cart.id } },
-    });
+    // Busca item no array já carregado ao invés de fazer query adicional
+    const item = cart.items?.find(item => item.id === itemId);
 
     if (!item) {
       throw new NotFoundException('Item not found in cart');
@@ -212,30 +223,25 @@ export class CartService {
 
     await this.updateCartTotal(cart.id);
 
-    const cartWithRelations = await this.cartRepository.findOne({
-      where: { id: cart.id },
-      relations: ['items', 'items.product'],
-    });
+    const updatedCart = await this.findCartWithRelations({ id: cart.id });
 
-    return this.mapCartToResponse(cartWithRelations);
+    if (!updatedCart) {
+      throw new NotFoundException('Failed to retrieve updated cart');
+    }
+
+    return this.mapCartToResponse(updatedCart);
   }
 
   async closeCart(cartId: string): Promise<CartResponseDto> {
-    const cart = await this.cartRepository.findOne({
-      where: { id: cartId },
-      relations: ['items', 'items.product'],
-    });
+    const cart = await this.findCartWithRelations({ id: cartId });
 
     if (!cart) {
       throw new NotFoundException('Cart not found');
     }
 
+    // Se já está fechado, retorna diretamente sem query adicional
     if (cart.status === CartStatus.CLOSED) {
-      const cartWithRelations = await this.cartRepository.findOne({
-        where: { id: cart.id },
-        relations: ['items', 'items.product'],
-      });
-      return this.mapCartToResponse(cartWithRelations);
+      return this.mapCartToResponse(cart);
     }
 
     if (!cart.items || cart.items.length === 0) {
@@ -249,20 +255,25 @@ export class CartService {
     cart.status = CartStatus.CLOSED;
     await this.cartRepository.save(cart);
 
-    const cartWithRelations = await this.cartRepository.findOne({
-      where: { id: cart.id },
-      relations: ['items', 'items.product'],
-    });
+    // Recarrega para garantir dados atualizados (status mudou)
+    const updatedCart = await this.findCartWithRelations({ id: cart.id });
 
-    return this.mapCartToResponse(cartWithRelations);
+    if (!updatedCart) {
+      throw new NotFoundException('Failed to retrieve updated cart');
+    }
+
+    return this.mapCartToResponse(updatedCart);
   }
 
   private async updateCartTotal(cartId: string): Promise<void> {
-    const items = await this.cartItemRepository.find({
-      where: { cart: { id: cartId } },
-    });
+    const result = await this.cartItemRepository
+      .createQueryBuilder('cartItem')
+      .select('COALESCE(SUM(cartItem.price * cartItem.quantity), 0)', 'total')
+      .where('cartItem.cart_id = :cartId', { cartId })
+      .andWhere('cartItem.deleted_at IS NULL')
+      .getRawOne();
 
-    const total = items.reduce((sum, item) => sum + Number(item.price) * item.quantity, 0);
+    const total = parseFloat(result?.total || '0');
 
     await this.cartRepository.update(cartId, { total });
   }
