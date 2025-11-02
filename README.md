@@ -10,7 +10,9 @@ API completa para gerenciamento de e-commerce com suporte a produtos, carrinho d
 - [Configuração](#-configuração)
 - [Executando o Projeto](#-executando-o-projeto)
 - [Documentação Swagger](#-documentação-swagger)
+- [Testando Rotas de Consulta Admin](#-testando-rotas-de-consulta-admin)
 - [Simulando Webhooks](#-simulando-webhooks)
+- [Teste de Cobrança Recorrente de Assinaturas Vencidas](#-teste-de-cobrança-recorrente-de-assinaturas-vencidas)
 - [Estrutura do Projeto](#-estrutura-do-projeto)
 - [Endpoints Principais](#-endpoints-principais)
 - [Comandos Úteis](#-comandos-úteis)
@@ -183,6 +185,109 @@ A documentação interativa da API está disponível em:
    - Retorna todas as assinaturas do cliente autenticado
    - Inclui informações de períodos e status
 
+## 🔍 Testando Rotas de Consulta Admin
+
+As rotas de consulta administrativa permitem que usuários com role `ADMIN` consultem todos os pedidos e assinaturas do sistema. Estas rotas são úteis para testes e homologação.
+
+### Autenticação
+
+Todas as rotas admin requerem:
+- Token JWT válido
+- Role `ADMIN` no usuário autenticado
+
+**Usuário Admin padrão (fixtures):**
+- Email: `admin@system.com`
+- Senha: `password123`
+
+### Rotas Disponíveis
+
+#### Pedidos (Orders)
+
+**GET** `/api/order/admin/all`
+- Lista todos os pedidos do sistema
+- Parâmetro opcional `nested`: 
+  - `nested=true` (padrão): Retorna pedidos com objetos relacionados (customer, cart, transactions)
+  - `nested=false`: Retorna apenas dados básicos dos pedidos (melhor performance)
+
+**GET** `/api/order/admin/:id`
+- Obtém um pedido específico por ID
+- Retorna todos os dados do pedido incluindo relacionamentos
+
+#### Assinaturas (Subscriptions)
+
+**GET** `/api/subscription/admin/all`
+- Lista todas as assinaturas do sistema
+- Parâmetro opcional `nested`:
+  - `nested=true` (padrão): Retorna assinaturas com objetos relacionados (customer, product, periods, periods.order)
+  - `nested=false`: Retorna apenas dados básicos das assinaturas (melhor performance)
+
+**GET** `/api/subscription/admin/:id`
+- Obtém uma assinatura específica por ID
+- Retorna todos os dados da assinatura incluindo relacionamentos
+
+### Exemplo de Uso
+
+1. **Fazer login como Admin:**
+```bash
+curl -X POST http://localhost:3000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "admin@system.com",
+    "password": "password123"
+  }'
+```
+
+2. **Copiar o `accessToken` e usar nas requisições:**
+
+**Listar todos os pedidos (com objetos relacionados):**
+```bash
+curl -X GET http://localhost:3000/api/order/admin/all \
+  -H "Authorization: Bearer seu-admin-token-jwt"
+```
+
+**Listar todos os pedidos (apenas dados básicos - melhor performance):**
+```bash
+curl -X GET "http://localhost:3000/api/order/admin/all?nested=false" \
+  -H "Authorization: Bearer seu-admin-token-jwt"
+```
+
+**Listar todas as assinaturas (com objetos relacionados):**
+```bash
+curl -X GET http://localhost:3000/api/subscription/admin/all \
+  -H "Authorization: Bearer seu-admin-token-jwt"
+```
+
+**Listar todas as assinaturas (apenas dados básicos - melhor performance):**
+```bash
+curl -X GET "http://localhost:3000/api/subscription/admin/all?nested=false" \
+  -H "Authorization: Bearer seu-admin-token-jwt"
+```
+
+**Obter pedido específico:**
+```bash
+curl -X GET http://localhost:3000/api/order/admin/uuid-do-pedido \
+  -H "Authorization: Bearer seu-admin-token-jwt"
+```
+
+**Obter assinatura específica:**
+```bash
+curl -X GET http://localhost:3000/api/subscription/admin/uuid-da-assinatura \
+  -H "Authorization: Bearer seu-admin-token-jwt"
+```
+
+### Usando no Swagger
+
+1. Acesse `http://localhost:3000/api/docs`
+2. Faça login via `POST /api/auth/login` com credenciais admin
+3. Copie o `accessToken`
+4. Clique em "Authorize" e cole o token
+5. Procure pelas rotas em `admin - orders` ou `admin - subscriptions`
+6. Teste as rotas diretamente pela interface
+
+### ⚠️ Nota de Performance
+
+As rotas `/admin/all` não possuem paginação e podem retornar grandes volumes de dados. Para melhor performance em consultas, use o parâmetro `nested=false` quando não precisar dos objetos relacionados. Estas rotas foram implementadas para fins de teste e homologação.
+
 ## 🔔 Simulando Webhooks
 
 ### Método 1: Endpoint de Simulação (Recomendado)
@@ -269,32 +374,58 @@ curl -X POST http://localhost:3000/api/webhooks/test/simulate \
    - A transaction será atualizada para `PAID`
    - Se houver produtos de assinatura, subscriptions serão criadas
 
-## ⚙️ Acionar Motor de Cobrança Recorrente (Manual)
+## 🔄 Teste de Cobrança Recorrente de Assinaturas Vencidas
 
-O motor de cobrança recorrente processa automaticamente assinaturas vencidas diariamente às 00:00, mas também pode ser acionado manualmente via endpoint (apenas para usuários Admin).
+O sistema possui um motor de cobrança recorrente que processa automaticamente assinaturas vencidas. Este motor roda diariamente às 00:00 via scheduler, mas também pode ser acionado manualmente via endpoint para fins de teste.
 
-**POST** `/api/subscription/process-billing`
+### Como Funciona
 
-**Autenticação:**
-- Requer token JWT de usuário com role `ADMIN`
+O motor de cobrança recorrente:
+- Busca automaticamente assinaturas com `status = ACTIVE` e `nextBillingDate <= hoje`
+- Para cada assinatura vencida encontrada:
+  1. Cria uma nova transação e pedido
+  2. Processa o pagamento via gateway de pagamento (mockado)
+  3. Atualiza o status da assinatura:
+     - `ACTIVE` se pagamento bem-sucedido
+     - `PAST_DUE` se pagamento falhar
+  4. Cria um novo período na assinatura
+  5. Atualiza `nextBillingDate` para o próximo ciclo se bem-sucedido
 
-**💡 Dados de Teste (Fixtures):**
+**Importante:** Apenas assinaturas com status `ACTIVE` são processadas automaticamente. Assinaturas com status `PENDING`, `PAST_DUE` ou `CANCELED` são ignoradas.
 
-Ao rodar o projeto com `npm run db:reload:dev`, o banco é populado com dados de exemplo incluindo:
+### Assinaturas Disponíveis para Teste (Fixtures)
 
-- **Usuário Admin**: `admin@system.com` (senha: `password123`)
-- **Assinaturas disponíveis para teste**:
-  - `activeMonthlySubscriptionJohn` - Status: `ACTIVE`, Next Billing: `2024-12-01`
-    - Subscription ID: `SUB-001-JOHN-MONTHLY`
-    - Cliente: John Silva (`john.silva@email.com`)
-  - `pastDueYearlySubscriptionPeter` - Status: `PAST_DUE`, Next Billing: `2024-10-30` (vencida)
-    - Subscription ID: `SUB-003-PETER-YEARLY`
-    - Cliente: Peter Santos (`peter.santos@email.com`)
-    - ⚠️ Esta assinatura não será processada pelo motor porque tem status `PAST_DUE` (apenas `ACTIVE` são processadas)
+Ao executar `npm run db:reload:dev`, o banco de dados é populado com dados de exemplo incluindo várias assinaturas prontas para teste:
+
+#### Assinaturas Passíveis de Renovação
+
+1. **`activeMonthlySubscriptionJohn`**
+   - **Subscription ID**: `SUB-001-JOHN-MONTHLY`
+   - **Status**: `ACTIVE` ✅
+   - **Next Billing Date**: `2024-12-01`
+   - **Período**: Mensal
+   - **Preço**: R$ 49,90
+   - **Cliente**: John Silva (`john.silva@email.com`)
+   - **Observação**: Esta assinatura será processada se a `nextBillingDate` estiver vencida (<= hoje)
+
+2. **`pastDueYearlySubscriptionPeter`**
+   - **Subscription ID**: `SUB-003-PETER-YEARLY`
+   - **Status**: `PAST_DUE` ✅
+   - **Next Billing Date**: `2024-10-30`
+   - **Período**: Anual
+   - **Preço**: R$ 499,90
+   - **Cliente**: Peter Santos (`peter.santos@email.com`)
+   - **Observação**: Esta assinatura será processada se a `nextBillingDate` estiver vencida (<= hoje)
+
 
 **Exemplo completo de teste:**
 
-1. **Fazer login como Admin:**
+1. **Carregue as fixtures no banco:**
+```bash
+npm run db:reload:dev
+```
+
+2. **Fazer login como Admin:**
 ```bash
 curl -X POST http://localhost:3000/api/auth/login \
   -H "Content-Type: application/json" \
@@ -304,7 +435,7 @@ curl -X POST http://localhost:3000/api/auth/login \
   }'
 ```
 
-2. **Copiar o `accessToken` da resposta e usar no endpoint de cobrança:**
+3. **Copiar o `accessToken` da resposta e usar no endpoint de cobrança:**
 ```bash
 curl -X POST http://localhost:3000/api/subscription/process-billing \
   -H "Authorization: Bearer seu-admin-token-jwt" \
@@ -314,8 +445,25 @@ curl -X POST http://localhost:3000/api/subscription/process-billing \
 **Resposta de sucesso:**
 ```json
 {
-  "processed": 3,
-  "successful": 2,
+  "processed": 1,
+  "successful": 1,
+  "failed": 0,
+  "results": [
+    {
+      "subscriptionId": "uuid-da-assinatura",
+      "success": true,
+      "orderId": "order-uuid-criado",
+      "transactionId": "tx_123456"
+    }
+  ]
+}
+```
+
+**Resposta com falhas:**
+```json
+{
+  "processed": 2,
+  "successful": 1,
   "failed": 1,
   "results": [
     {
@@ -326,12 +474,6 @@ curl -X POST http://localhost:3000/api/subscription/process-billing \
     },
     {
       "subscriptionId": "uuid-2",
-      "success": true,
-      "orderId": "order-uuid-2",
-      "transactionId": "tx_789012"
-    },
-    {
-      "subscriptionId": "uuid-3",
       "success": false,
       "error": "Payment failed"
     }
@@ -339,20 +481,39 @@ curl -X POST http://localhost:3000/api/subscription/process-billing \
 }
 ```
 
-**O que acontece quando o endpoint é chamado:**
-1. Busca todas as assinaturas com `status = ACTIVE` e `nextBillingDate <= hoje`
-2. Para cada assinatura vencida:
-   - Cria uma nova transação e pedido
-   - Processa o pagamento via gateway (mockado)
-   - Atualiza status da assinatura:
-     - `ACTIVE` se pagamento bem-sucedido
-     - `PAST_DUE` se pagamento falhar
-   - Cria novo período na assinatura
-   - Atualiza `nextBillingDate` se bem-sucedido
+### Verificando Resultados
 
-**Nota:** Este endpoint é idempotente e seguro para chamadas múltiplas. Se uma assinatura já foi processada recentemente, ela será processada novamente apenas se sua `nextBillingDate` estiver vencida.
+Após executar o endpoint, você pode verificar:
 
-**⚠️ Importante:** Note que o endpoint processa apenas assinaturas com status `ACTIVE`. A assinatura `pastDueYearlySubscriptionPeter` nas fixtures tem status `PAST_DUE`, então não será processada automaticamente. Para testar com ela, você precisaria primeiro atualizar seu status para `ACTIVE` no banco de dados.
+1. **Novos pedidos criados:**
+   - Use `GET /api/order/admin/all` para listar todos os pedidos
+   - Procure por novos pedidos relacionados às assinaturas processadas
+
+2. **Assinaturas atualizadas:**
+   - Use `GET /api/subscription/admin/all` para listar todas as assinaturas
+   - Verifique se o `nextBillingDate` foi atualizado para as próximas datas
+   - Verifique se novos períodos foram criados
+
+3. **Transações criadas:**
+   - Os pedidos criados terão transações associadas
+   - Status das transações: `PAID` (sucesso) ou `FAILED` (falha)
+
+### Notas Importantes
+
+- **Idempotência**: Este endpoint é idempotente e seguro para chamadas múltiplas. Se uma assinatura já foi processada recentemente, ela será processada novamente apenas se sua `nextBillingDate` estiver vencida.
+
+- **Gateway Mockado**: O gateway de pagamento é mockado e sempre simula sucesso. Para testar falhas de pagamento, seria necessário modificar o código do serviço de cobrança.
+
+- **Data de Vencimento**: Para testar com as assinaturas das fixtures, você pode:
+  - Aguardar a data de vencimento (`nextBillingDate`)
+  - Ou atualizar manualmente no banco de dados a `nextBillingDate` para uma data passada
+
+- **Atualizando `nextBillingDate` no banco (exemplo SQL):**
+```sql
+UPDATE subscription 
+SET "nextBillingDate" = CURRENT_DATE - INTERVAL '1 day' 
+WHERE "subscriptionId" = 'SUB-001-JOHN-MONTHLY';
+```
 
 ## 📁 Estrutura do Projeto
 
