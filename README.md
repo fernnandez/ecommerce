@@ -15,6 +15,9 @@ API completa para gerenciamento de e-commerce com suporte a produtos, carrinho d
 - [Endpoints Principais](#-endpoints-principais)
 - [Comandos Úteis](#-comandos-úteis)
 - [Testes](#-testes)
+- [Segurança](#-segurança)
+- [Notas Importantes](#-notas-importantes)
+- [Implementações Futuras](#-implementações-futuras)
 
 ## 🚀 Tecnologias
 
@@ -86,10 +89,9 @@ API completa para gerenciamento de e-commerce com suporte a produtos, carrinho d
    ```
 
 2. **Configure a versão do node e instale as dependências**
-  ```bash
+   ```bash
    nvm use
-
-  npm install
+   npm install
    ```
 
 3. **Configure as variáveis de ambiente**
@@ -172,6 +174,14 @@ A documentação interativa da API está disponível em:
      "paymentMethod": "card"
    }
    ```
+
+7. **Consultar Pedidos** (`GET /api/order`)
+   - Retorna todos os pedidos do cliente autenticado
+   - Lista ordenada por data (mais recentes primeiro)
+
+8. **Consultar Assinaturas** (`GET /api/subscription`)
+   - Retorna todas as assinaturas do cliente autenticado
+   - Inclui informações de períodos e status
 
 ## 🔔 Simulando Webhooks
 
@@ -283,7 +293,6 @@ ecommerce/
 │   │   └── database/
 │   ├── integration/      # Integrações externas
 │   │   └── charge/
-│   └── config/           # Arquivos de configuração
 ├── test/                 # Testes de integração
 │   ├── integration/
 │   └── helper/
@@ -315,6 +324,12 @@ ecommerce/
 - `PATCH /api/product/:id` - Atualizar produto (Admin)
 - `DELETE /api/product/:id` - Deletar produto (Admin)
 
+### Pedidos
+- `GET /api/order` - Listar pedidos do cliente autenticado
+
+### Assinaturas
+- `GET /api/subscription` - Listar assinaturas do cliente autenticado
+
 ### Webhooks
 - `POST /api/webhooks/payment` - Receber webhook de pagamento
 - `POST /api/webhooks/test/simulate` - Simular webhook (público)
@@ -332,13 +347,6 @@ npm run build               # Compila o projeto
 ```bash
 npm run db:reload:dev       # Recria schema e carrega fixtures
 npm run fixtures:load       # Carrega fixtures no banco
-npm run fixtures:reset     # Reseta banco e carrega fixtures
-```
-
-### Testes
-```bash
-npm test                    # Executa todos os testes
-npm run test:cov            # Executa testes com cobertura
 ```
 
 ## 🧪 Testes
@@ -353,6 +361,11 @@ O projeto possui testes de integração para os principais fluxos:
 - Assinaturas e cobrança recorrente
 
 ### Executar Testes
+
+```bash
+npm run db:reload:test       # Recria schema e carrega fixtures de teste
+```
+
 ```bash
 # Todos os testes
 npm test
@@ -379,6 +392,91 @@ Os testes usam um banco de dados separado (definido via `NODE_ENV=test`). Certif
 - O gateway de pagamento é **mockado** (não realiza cobranças reais)
 - As fixtures são carregadas automaticamente com dados de exemplo
 - O scheduler de cobrança recorrente roda diariamente às 00:00
+
+## 🚀 Implementações Futuras
+
+Esta seção documenta melhorias planejadas para escalar o produto quando necessário. Estas implementações não são críticas no momento atual, mas serão essenciais conforme a base de usuários e produtos crescer.
+
+### 📄 Paginação e Cache Layer
+
+**Motivação:** Com o crescimento da base de produtos, é primordial criar recursos de paginação e cache layer para rotas muito utilizadas, em especial rotas públicas.
+
+**Implementações planejadas:**
+- **Paginação**
+  - Implementar paginação padrão em rotas de listagem (especialmente `GET /api/product`)
+  - Parâmetros de query: `page`, `limit`, `offset`
+  - Response com metadados: `total`, `page`, `limit`, `totalPages`
+  
+- **Cache Layer**
+  - Implementar cache (Redis ) para rotas públicas de produtos
+  - Estratégias de cache:
+    - Cache de produtos por ID (TTL configurável)
+    - Cache de listagens de produtos (invalidar em updates)
+    - Cache de dados estáticos (categorias, etc.)
+  - Middleware de cache com invalidação inteligente
+
+### 🛡️ Rate Limiting Específico
+
+**Motivação:** A definição de rate-limit específico para rotas mais utilizadas ou alvo requer análise prévia de observabilidade para identificar padrões de uso e rotas críticas.
+
+**Implementações planejadas:**
+- **Análise de Observabilidade** (pré-requisito)
+  - Implementar logging estruturado para identificar rotas mais acessadas
+  - Análise de padrões de tráfego e picos de uso
+  - Identificação de rotas alvo de ataques ou abuso
+
+- **Rate Limiting Estratégico**
+  - Rate limits diferenciados por tipo de rota:
+    - Rotas públicas (produtos): Limites mais permissivos
+    - Rotas autenticadas: Limites intermediários
+    - Rotas críticas (checkout, webhooks): Limites mais restritivos
+  - Rate limiting por usuário (além de IP)
+  - Sliding window ou token bucket algorithms
+  - Headers informativos de rate limit (`X-RateLimit-*`)
+
+### 📊 Observabilidade e Métricas
+
+**Motivação:** Implementação de observabilidade completa para monitoramento, debugging e otimização de performance em produção.
+
+**Stack sugerida:**
+- **OpenTelemetry** - Instrumentação padrão para traces, métricas e logs
+- **Jaeger** - Visualização e análise de traces distribuídos
+- **Prometheus** - Coleta e armazenamento de métricas
+
+**Implementações planejadas:**
+- **Tracing Distribuído**
+  - Instrumentação automática de requisições HTTP
+  - Traces de operações de banco de dados
+  - Traces de integrações externas (gateway de pagamento)
+  - Correlation IDs entre serviços
+
+- **Métricas**
+  - Métricas de negócio:
+    - Taxa de conversão (checkout)
+    - Tempo médio de processamento de pedidos
+    - Taxa de sucesso/falha de pagamentos
+    - Volume de assinaturas criadas
+  - Métricas técnicas:
+    - Latência de endpoints (p95)
+    - Throughput por endpoint
+    - Taxa de erro por tipo
+    - Uso de recursos (CPU, memória, DB connections)
+
+- **Logging Estruturado**
+  - Logs estruturados em JSON
+  - Contexto adicional (user ID, request ID, etc.)
+  - Níveis de log configuráveis por ambiente
+  - Integração com sistemas de log aggregation
+
+- **Health Checks Avançados**
+  - Health checks de dependências (DB, Redis, etc.)
+  - Métricas de saúde do sistema
+
+**Benefícios esperados:**
+- Identificação rápida de problemas em produção
+- Otimização baseada em dados reais
+- Planejamento de capacidade baseado em métricas
+- Debugging eficiente de problemas distribuídos
 
 ---
 
