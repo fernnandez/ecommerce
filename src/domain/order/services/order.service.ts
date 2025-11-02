@@ -147,7 +147,7 @@ export class OrderService {
       );
 
       for (const item of subscriptionItems) {
-        if (item.product && item.product.periodicity) {
+        if (item.product?.periodicity) {
           try {
             const subscriptionPeriodicity = this.mapProductPeriodicityToSubscriptionPeriodicity(
               item.product.periodicity,
@@ -220,7 +220,7 @@ export class OrderService {
     paymentMethod: PaymentMethod,
     chargeResponse: {
       transactionId: string;
-      status: any;
+      status: ChargeStatus;
       message?: string;
       processingTime: number;
       gateway?: string;

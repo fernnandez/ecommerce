@@ -4,16 +4,15 @@ import { AppModule } from '@src/app.module';
 import { Customer } from '@src/domain/customer/entities/customer.entity';
 import { Order, OrderOrigin, OrderStatus } from '@src/domain/order/entities/order.entity';
 import { Transaction, TransactionStatus } from '@src/domain/order/entities/transaction.entity';
-import { Product } from '@src/domain/product/entities/product.entity';
 import { PeriodStatus, SubscriptionPeriod } from '@src/domain/subscription/entities/subscription-period.entity';
-import { Subscription, SubscriptionStatus } from '@src/domain/subscription/entities/subscription.entity';
+import { Periodicity, Subscription, SubscriptionStatus } from '@src/domain/subscription/entities/subscription.entity';
 import { RecurringBillingSchedulerService } from '@src/domain/subscription/services/recurring-billing-scheduler.service';
 import { RecurringBillingService } from '@src/domain/subscription/services/recurring-billing.service';
 import { createTestingApp } from '@test/helper/create-testing-app';
 import { runWithRollbackTransaction } from '@test/helper/database/test-transaction';
 import { FixtureHelper } from '@test/helper/fixture-helper';
 import { Repository } from 'typeorm';
-import { initializeTransactionalContext, StorageDriver } from 'typeorm-transactional';
+import { StorageDriver, initializeTransactionalContext } from 'typeorm-transactional';
 
 initializeTransactionalContext({ storageDriver: StorageDriver.AUTO });
 
@@ -25,7 +24,6 @@ describe('RecurringBillingService & Scheduler - Integration', () => {
   let subscriptionRepo: Repository<Subscription>;
   let subscriptionPeriodRepo: Repository<SubscriptionPeriod>;
   let customerRepo: Repository<Customer>;
-  let productRepo: Repository<Product>;
   let transactionRepo: Repository<Transaction>;
   let orderRepo: Repository<Order>;
 
@@ -42,7 +40,6 @@ describe('RecurringBillingService & Scheduler - Integration', () => {
     subscriptionRepo = app.get<Repository<Subscription>>(getRepositoryToken(Subscription));
     subscriptionPeriodRepo = app.get<Repository<SubscriptionPeriod>>(getRepositoryToken(SubscriptionPeriod));
     customerRepo = app.get<Repository<Customer>>(getRepositoryToken(Customer));
-    productRepo = app.get<Repository<Product>>(getRepositoryToken(Product));
     transactionRepo = app.get<Repository<Transaction>>(getRepositoryToken(Transaction));
     orderRepo = app.get<Repository<Order>>(getRepositoryToken(Order));
   });
@@ -69,7 +66,7 @@ describe('RecurringBillingService & Scheduler - Integration', () => {
           customer: customer1,
           product,
           price: parseFloat(product.price.toString()),
-          periodicity: 'monthly' as any,
+          periodicity: Periodicity.MONTHLY,
           status: SubscriptionStatus.ACTIVE,
           nextBillingDate: pastDate,
         });
@@ -80,7 +77,7 @@ describe('RecurringBillingService & Scheduler - Integration', () => {
           customer: customer2,
           product,
           price: parseFloat(product.price.toString()),
-          periodicity: 'monthly' as any,
+          periodicity: Periodicity.MONTHLY,
           status: SubscriptionStatus.ACTIVE,
           nextBillingDate: pastDate,
         });
@@ -105,8 +102,8 @@ describe('RecurringBillingService & Scheduler - Integration', () => {
         expect(result2?.transactionId).toBeDefined();
 
         // Verify orders were created
-        const order1 = await orderRepo.findOne({ where: { id: result1!.orderId! } });
-        const order2 = await orderRepo.findOne({ where: { id: result2!.orderId! } });
+        const order1 = await orderRepo.findOne({ where: { id: result1.orderId } });
+        const order2 = await orderRepo.findOne({ where: { id: result2.orderId } });
 
         expect(order1).toBeDefined();
         expect(order1?.origin).toBe(OrderOrigin.SUBSCRIPTION);
@@ -115,10 +112,10 @@ describe('RecurringBillingService & Scheduler - Integration', () => {
 
         // Verify transactions were created
         const transaction1 = await transactionRepo.findOne({
-          where: { transactionId: result1!.transactionId! },
+          where: { transactionId: result1.transactionId },
         });
         const transaction2 = await transactionRepo.findOne({
-          where: { transactionId: result2!.transactionId! },
+          where: { transactionId: result2.transactionId },
         });
 
         expect(transaction1).toBeDefined();
@@ -138,10 +135,10 @@ describe('RecurringBillingService & Scheduler - Integration', () => {
 
         const subscription = subscriptionRepo.create({
           subscriptionId: `SUB-TEST-ERROR-${Date.now()}`,
-          customer: customer,
+          customer,
           product,
           price: parseFloat(product.price.toString()),
-          periodicity: 'monthly' as any,
+          periodicity: Periodicity.MONTHLY,
           status: SubscriptionStatus.ACTIVE,
           nextBillingDate: pastDate,
         });
@@ -176,10 +173,10 @@ describe('RecurringBillingService & Scheduler - Integration', () => {
 
         const subscription = subscriptionRepo.create({
           subscriptionId: `SUB-TEST-FUTURE-${Date.now()}`,
-          customer: customer,
+          customer,
           product,
           price: parseFloat(product.price.toString()),
-          periodicity: 'monthly' as any,
+          periodicity: Periodicity.MONTHLY,
           status: SubscriptionStatus.ACTIVE,
           nextBillingDate: futureDate,
         });
@@ -205,10 +202,10 @@ describe('RecurringBillingService & Scheduler - Integration', () => {
 
         const activeSubscription = subscriptionRepo.create({
           subscriptionId: `SUB-TEST-ACTIVE-${Date.now()}`,
-          customer: customer,
+          customer,
           product,
           price: parseFloat(product.price.toString()),
-          periodicity: 'monthly' as any,
+          periodicity: Periodicity.MONTHLY,
           status: SubscriptionStatus.ACTIVE,
           nextBillingDate: pastDate,
         });
@@ -216,10 +213,10 @@ describe('RecurringBillingService & Scheduler - Integration', () => {
 
         const cancelledSubscription = subscriptionRepo.create({
           subscriptionId: `SUB-TEST-CANCELLED-${Date.now()}`,
-          customer: customer,
+          customer,
           product,
           price: parseFloat(product.price.toString()),
-          periodicity: 'monthly' as any,
+          periodicity: Periodicity.MONTHLY,
           status: SubscriptionStatus.CANCELED,
           nextBillingDate: pastDate,
         });
@@ -255,7 +252,7 @@ describe('RecurringBillingService & Scheduler - Integration', () => {
           relations: ['customer', 'product', 'periods'],
         });
 
-        const result = await recurringBillingService.processSubscriptionBilling(updatedSubscription!);
+        const result = await recurringBillingService.processSubscriptionBilling(updatedSubscription);
 
         expect(result).toBeDefined();
         expect(result.subscriptionId).toBe(subscription.id);
@@ -265,7 +262,7 @@ describe('RecurringBillingService & Scheduler - Integration', () => {
 
         // Verify order was created
         const order = await orderRepo.findOne({
-          where: { id: result.orderId! },
+          where: { id: result.orderId },
           relations: ['customer'],
         });
         expect(order).toBeDefined();
@@ -275,7 +272,7 @@ describe('RecurringBillingService & Scheduler - Integration', () => {
 
         // Verify transaction was created
         const transaction = await transactionRepo.findOne({
-          where: { transactionId: result.transactionId! },
+          where: { transactionId: result.transactionId },
         });
         expect(transaction).toBeDefined();
         expect(transaction?.status).toBe(TransactionStatus.PAID);
@@ -306,7 +303,7 @@ describe('RecurringBillingService & Scheduler - Integration', () => {
         const nextBillingDate =
           updatedSub?.nextBillingDate instanceof Date
             ? updatedSub.nextBillingDate
-            : new Date(updatedSub?.nextBillingDate as any);
+            : new Date(updatedSub?.nextBillingDate);
         expect(nextBillingDate.getTime()).toBeGreaterThan(pastDate.getTime());
       }),
     );
@@ -325,10 +322,10 @@ describe('RecurringBillingService & Scheduler - Integration', () => {
 
         const subscription = subscriptionRepo.create({
           subscriptionId: `SUB-TEST-FAIL-${Date.now()}`,
-          customer: customer,
+          customer,
           product,
           price: parseFloat(product.price.toString()),
-          periodicity: 'quarterly' as any,
+          periodicity: Periodicity.QUARTERLY,
           status: SubscriptionStatus.ACTIVE,
           nextBillingDate: new Date(),
         });
@@ -351,7 +348,7 @@ describe('RecurringBillingService & Scheduler - Integration', () => {
         expect(result.transactionId).toBeDefined();
 
         // Verify order was created regardless of status
-        const order = await orderRepo.findOne({ where: { id: result.orderId! } });
+        const order = await orderRepo.findOne({ where: { id: result.orderId } });
         expect(order).toBeDefined();
       }),
     );
@@ -368,7 +365,7 @@ describe('RecurringBillingService & Scheduler - Integration', () => {
           customer,
           product,
           price: parseFloat(product.price.toString()),
-          periodicity: 'monthly' as any,
+          periodicity: Periodicity.MONTHLY,
           status: SubscriptionStatus.ACTIVE,
           nextBillingDate: new Date(),
         });
@@ -380,15 +377,15 @@ describe('RecurringBillingService & Scheduler - Integration', () => {
         const customerOrders = await orderRepo.find({
           where: { customer: { id: customer.id } },
         });
-        
+
         // Delete subscription periods first (they reference orders)
         for (const order of customerOrders) {
           await subscriptionPeriodRepo.delete({ order: { id: order.id } });
         }
-        
+
         // Now delete orders
         await orderRepo.delete({ customer: { id: customer.id } });
-        
+
         // Finally delete customer
         await customerRepo.delete(customer.id);
 
@@ -402,10 +399,9 @@ describe('RecurringBillingService & Scheduler - Integration', () => {
         // Or we can test by accessing subscription.customer which will be null
         if (subscriptionWithoutCustomer) {
           // Access customer property which might be null
-          const customerRef = subscriptionWithoutCustomer.customer;
 
           // Mock the scenario where customer is null
-          subscriptionWithoutCustomer.customer = null as any;
+          subscriptionWithoutCustomer.customer = null;
 
           await expect(recurringBillingService.processSubscriptionBilling(subscriptionWithoutCustomer)).rejects.toThrow(
             'Customer not found for subscription',
@@ -431,10 +427,10 @@ describe('RecurringBillingService & Scheduler - Integration', () => {
 
         const subscription = subscriptionRepo.create({
           subscriptionId: `SUB-TEST-NO-USER-${Date.now()}`,
-          customer: customer,
+          customer,
           product,
           price: parseFloat(product.price.toString()),
-          periodicity: 'monthly' as any,
+          periodicity: Periodicity.MONTHLY,
           status: SubscriptionStatus.ACTIVE,
           nextBillingDate: new Date(),
         });
@@ -469,7 +465,7 @@ describe('RecurringBillingService & Scheduler - Integration', () => {
           customer: customer1,
           product,
           price: parseFloat(product.price.toString()),
-          periodicity: 'monthly' as any,
+          periodicity: Periodicity.MONTHLY,
           status: SubscriptionStatus.ACTIVE,
           nextBillingDate: pastDate,
         });
@@ -480,7 +476,7 @@ describe('RecurringBillingService & Scheduler - Integration', () => {
           customer: customer2,
           product,
           price: parseFloat(product.price.toString()),
-          periodicity: 'monthly' as any,
+          periodicity: Periodicity.MONTHLY,
           status: SubscriptionStatus.ACTIVE,
           nextBillingDate: pastDate,
         });

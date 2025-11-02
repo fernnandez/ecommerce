@@ -1,19 +1,15 @@
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import request from 'supertest';
-import { Repository } from 'typeorm';
-import {
-  initializeTransactionalContext,
-  StorageDriver,
-} from 'typeorm-transactional';
 import { AppModule } from '@src/app.module';
+import { WebhookEventType } from '@src/application/webhook/dto/webhook-payload.dto';
 import { Order, OrderStatus } from '@src/domain/order/entities/order.entity';
 import { Transaction, TransactionStatus } from '@src/domain/order/entities/transaction.entity';
-import { SubscriptionPeriod } from '@src/domain/subscription/entities/subscription-period.entity';
-import { WebhookEventType } from '@src/application/webhook/dto/webhook-payload.dto';
 import { createTestingApp } from '@test/helper/create-testing-app';
 import { runWithRollbackTransaction } from '@test/helper/database/test-transaction';
 import { FixtureHelper } from '@test/helper/fixture-helper';
+import request from 'supertest';
+import { Repository } from 'typeorm';
+import { StorageDriver, initializeTransactionalContext } from 'typeorm-transactional';
 
 initializeTransactionalContext({ storageDriver: StorageDriver.AUTO });
 
@@ -148,7 +144,7 @@ describe('WebhookController - Integration (HTTP)', () => {
       runWithRollbackTransaction(async () => {
         // Use existing pending order from fixtures
         const order = await fixtures.fixtures.orders.pendingJohn();
-        
+
         // Create a new transaction with CREATED status for this test
         const transaction = transactionRepo.create({
           transactionId: `TXN-TEST-PENDING-${Date.now()}`,
@@ -157,7 +153,7 @@ describe('WebhookController - Integration (HTTP)', () => {
           currency: 'BRL',
           message: 'Test pending transaction',
           processingTime: 500,
-          order: order,
+          order,
         });
         const savedTransaction = await transactionRepo.save(transaction);
 
@@ -418,9 +414,8 @@ describe('WebhookController - Integration (HTTP)', () => {
       runWithRollbackTransaction(async () => {
         // This test verifies that updateTransactionStatus also updates subscription status
         // We'll use a transaction that's linked to a subscription period
-        const subscription = await fixtures.fixtures.subscriptions.activeMonthlyJohn();
         const order = await fixtures.fixtures.orders.pendingJohn();
-        
+
         // Create a new transaction for this test
         const transaction = transactionRepo.create({
           transactionId: `TXN-SUB-TEST-${Date.now()}`,
@@ -429,20 +424,9 @@ describe('WebhookController - Integration (HTTP)', () => {
           currency: 'BRL',
           message: 'Test subscription transaction',
           processingTime: 500,
-          order: order,
+          order,
         });
         const savedTransaction = await transactionRepo.save(transaction);
-
-        // Link transaction to subscription period via order (simulate real scenario)
-        // In real flow, this would be done during subscription creation
-        const subscriptionPeriodRepo = app.get<Repository<SubscriptionPeriod>>(
-          getRepositoryToken(SubscriptionPeriod)
-        );
-        const subscriptionPeriod = subscription.periods?.[0];
-        if (subscriptionPeriod && subscriptionPeriod.order) {
-          // The period is already linked to an order, which contains the transaction
-          // This is the correct flow now
-        }
 
         const webhookPayload = {
           event: WebhookEventType.PAYMENT_SUCCESS,
@@ -473,4 +457,3 @@ describe('WebhookController - Integration (HTTP)', () => {
     );
   });
 });
-

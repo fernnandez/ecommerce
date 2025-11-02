@@ -1,13 +1,12 @@
 import { CartItem } from '@domain/cart/entities/cart-item.entity';
-import { Periodicity } from '@domain/product/entities/product.entity';
 import { Cart, CartStatus } from '@domain/cart/entities/cart.entity';
-import { CustomerService } from '@src/domain/customer/services/customer.service';
 import { OrderStatus, PaymentMethod } from '@domain/order/entities/order.entity';
 import { Transaction } from '@domain/order/entities/transaction.entity';
 import { OrderService } from '@domain/order/services/order.service';
-import { ProductService } from '@src/domain/product/services/product.service';
 import { BadRequestException, Inject, Injectable, NotFoundException, forwardRef } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { CustomerService } from '@src/domain/customer/services/customer.service';
+import { ProductService } from '@src/domain/product/services/product.service';
 import { Repository } from 'typeorm';
 import { Transactional } from 'typeorm-transactional';
 
@@ -131,11 +130,7 @@ export class CartService {
     });
   }
 
-  async addItem(
-    customerId: string,
-    productId: string,
-    quantity: number = 1,
-  ): Promise<CartResponseDto> {
+  async addItem(customerId: string, productId: string, quantity: number = 1): Promise<CartResponseDto> {
     const cart = await this.getOrCreateOpenCartEntity(customerId);
 
     const product = await this.productService.findOneOrFail(productId);
@@ -308,7 +303,7 @@ export class CartService {
 
     const cart = await this.getCartById(cartId);
 
-    if (!cart || cart.customer.id !== customerId) {
+    if (cart?.customer.id !== customerId) {
       throw new NotFoundException('Cart not found or does not belong to customer');
     }
 

@@ -45,22 +45,14 @@ export class AdyenProvider implements IChargeProvider {
     }
 
     if (paymentMethod === PaymentMethod.CARD) {
-      return ChargeStatus.PAID;
-      
       const random = Math.random();
       if (random < 0.6) {
-        // 60% - pagamento aprovado
+        return ChargeStatus.PAID; // 60% - pagamento aprovado (success)
       } else if (random < 0.8) {
-        // 20% - recusado
-        return ChargeStatus.REFUSED;
-      } else {
-        // 20% - processando
-        return ChargeStatus.PROCESSING;
+        return ChargeStatus.REFUSED; // 20% - recusado
       }
+      return ChargeStatus.PROCESSING; // 20% - processando
     }
-
-    // Fallback
-    return ChargeStatus.FAILED;
   }
 
   private getStatusMessage(status: ChargeStatus): string {

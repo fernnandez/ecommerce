@@ -104,7 +104,7 @@ describe('CustomerController - Integration (HTTP)', () => {
       runWithRollbackTransaction(async () => {
         const existingCustomer = await fixtures.fixtures.customers.john();
         // Get the identification number value from the fixture
-        const existingIdentification = existingCustomer.identificationNumber.getValue() as string;
+        const existingIdentification = existingCustomer.identificationNumber.getValue();
 
         const createCustomerDto = {
           name: 'New Customer',

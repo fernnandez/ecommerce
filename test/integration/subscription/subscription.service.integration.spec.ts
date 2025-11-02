@@ -1,23 +1,17 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { ConflictException, INestApplication, NotFoundException } from '@nestjs/common';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import {
-  initializeTransactionalContext,
-  StorageDriver,
-} from 'typeorm-transactional';
 import { AppModule } from '@src/app.module';
-import { Subscription, SubscriptionStatus, Periodicity } from '@src/domain/subscription/entities/subscription.entity';
-import { SubscriptionPeriod, PeriodStatus } from '@src/domain/subscription/entities/subscription-period.entity';
 import { Customer } from '@src/domain/customer/entities/customer.entity';
-import { Product } from '@src/domain/product/entities/product.entity';
-import { Transaction, TransactionStatus } from '@src/domain/order/entities/transaction.entity';
 import { Order, OrderOrigin, OrderStatus, PaymentMethod } from '@src/domain/order/entities/order.entity';
+import { Transaction, TransactionStatus } from '@src/domain/order/entities/transaction.entity';
+import { PeriodStatus, SubscriptionPeriod } from '@src/domain/subscription/entities/subscription-period.entity';
+import { Periodicity, Subscription, SubscriptionStatus } from '@src/domain/subscription/entities/subscription.entity';
 import { SubscriptionService } from '@src/domain/subscription/services/subscription.service';
 import { createTestingApp } from '@test/helper/create-testing-app';
 import { runWithRollbackTransaction } from '@test/helper/database/test-transaction';
 import { FixtureHelper } from '@test/helper/fixture-helper';
-import { ConflictException, NotFoundException } from '@nestjs/common';
-import { INestApplication } from '@nestjs/common';
+import { Repository } from 'typeorm';
+import { StorageDriver, initializeTransactionalContext } from 'typeorm-transactional';
 
 initializeTransactionalContext({ storageDriver: StorageDriver.AUTO });
 
@@ -27,8 +21,6 @@ describe('SubscriptionService - Integration', () => {
   let fixtures: FixtureHelper;
   let subscriptionRepo: Repository<Subscription>;
   let subscriptionPeriodRepo: Repository<SubscriptionPeriod>;
-  let customerRepo: Repository<Customer>;
-  let productRepo: Repository<Product>;
   let transactionRepo: Repository<Transaction>;
   let orderRepo: Repository<Order>;
 
@@ -43,8 +35,6 @@ describe('SubscriptionService - Integration', () => {
     service = app.get<SubscriptionService>(SubscriptionService);
     subscriptionRepo = app.get<Repository<Subscription>>(getRepositoryToken(Subscription));
     subscriptionPeriodRepo = app.get<Repository<SubscriptionPeriod>>(getRepositoryToken(SubscriptionPeriod));
-    customerRepo = app.get<Repository<Customer>>(getRepositoryToken(Customer));
-    productRepo = app.get<Repository<Product>>(getRepositoryToken(Product));
     transactionRepo = app.get<Repository<Transaction>>(getRepositoryToken(Transaction));
     orderRepo = app.get<Repository<Order>>(getRepositoryToken(Order));
   });
@@ -137,20 +127,14 @@ describe('SubscriptionService - Integration', () => {
       runWithRollbackTransaction(async () => {
         const customer = await fixtures.fixtures.customers.john();
         const product = await fixtures.fixtures.products.monthlySubscription();
-        
+
         // John already has an active subscription for monthly plan in fixtures
         // Try to create another one with same product
         const transaction = await fixtures.fixtures.transactions.paid(parseFloat(product.price.toString()));
         const order = await createOrderFromTransaction(customer, transaction, parseFloat(product.price.toString()));
 
         await expect(
-          service.create(
-            customer,
-            product,
-            parseFloat(product.price.toString()),
-            Periodicity.MONTHLY,
-            order,
-          ),
+          service.create(customer, product, parseFloat(product.price.toString()), Periodicity.MONTHLY, order),
         ).rejects.toThrow(ConflictException);
       }),
     );
@@ -291,7 +275,11 @@ describe('SubscriptionService - Integration', () => {
         const subscription = await fixtures.fixtures.subscriptions.activeMonthlyJohn();
         const customer = subscription.customer;
         const transaction = await fixtures.fixtures.transactions.paid(parseFloat(subscription.price.toString()));
-        const order = await createOrderFromTransaction(customer, transaction, parseFloat(subscription.price.toString()));
+        const order = await createOrderFromTransaction(
+          customer,
+          transaction,
+          parseFloat(subscription.price.toString()),
+        );
 
         const result = await service.createPeriod(subscription, order, parseFloat(subscription.price.toString()));
 
@@ -327,7 +315,11 @@ describe('SubscriptionService - Integration', () => {
           });
           const savedOrder = await orderRepo.save(order);
 
-          const result = await service.createPeriod(subscription, savedOrder, parseFloat(subscription.price.toString()));
+          const result = await service.createPeriod(
+            subscription,
+            savedOrder,
+            parseFloat(subscription.price.toString()),
+          );
 
           expect(result.status).toBe(testCase.expectedPeriodStatus);
         }
@@ -340,7 +332,11 @@ describe('SubscriptionService - Integration', () => {
         const subscription = await fixtures.fixtures.subscriptions.pendingQuarterlyMary();
         const customer = subscription.customer;
         const transaction = await fixtures.fixtures.transactions.paid(parseFloat(subscription.price.toString()));
-        const order = await createOrderFromTransaction(customer, transaction, parseFloat(subscription.price.toString()));
+        const order = await createOrderFromTransaction(
+          customer,
+          transaction,
+          parseFloat(subscription.price.toString()),
+        );
 
         const result = await service.createPeriod(subscription, order, parseFloat(subscription.price.toString()));
 
@@ -358,7 +354,11 @@ describe('SubscriptionService - Integration', () => {
         const subscription = await fixtures.fixtures.subscriptions.pastDueYearlyPeter();
         const customer = subscription.customer;
         const transaction = await fixtures.fixtures.transactions.paid(parseFloat(subscription.price.toString()));
-        const order = await createOrderFromTransaction(customer, transaction, parseFloat(subscription.price.toString()));
+        const order = await createOrderFromTransaction(
+          customer,
+          transaction,
+          parseFloat(subscription.price.toString()),
+        );
 
         const result = await service.createPeriod(subscription, order, parseFloat(subscription.price.toString()));
 
@@ -429,9 +429,9 @@ describe('SubscriptionService - Integration', () => {
     it(
       'should throw NotFoundException when subscription does not exist',
       runWithRollbackTransaction(async () => {
-        await expect(
-          service.updateNextBillingDate('00000000-0000-0000-0000-000000000000'),
-        ).rejects.toThrow(NotFoundException);
+        await expect(service.updateNextBillingDate('00000000-0000-0000-0000-000000000000')).rejects.toThrow(
+          NotFoundException,
+        );
       }),
     );
   });
@@ -461,17 +461,13 @@ describe('SubscriptionService - Integration', () => {
         });
 
         expect(fullSubscription?.periods).toBeDefined();
-        expect(fullSubscription!.periods.length).toBeGreaterThan(0);
+        expect(fullSubscription.periods.length).toBeGreaterThan(0);
 
-        const period = fullSubscription!.periods[0];
+        const period = fullSubscription.periods[0];
         expect(period.order).toBeDefined();
 
         // Update period status
-        await service.updatePeriodStatus(
-          subscription.id,
-          period.order!.id,
-          PeriodStatus.FAILED,
-        );
+        await service.updatePeriodStatus(subscription.id, period.order.id, PeriodStatus.FAILED);
 
         // Verify update
         const updatedPeriod = await subscriptionPeriodRepo.findOne({
@@ -500,9 +496,7 @@ describe('SubscriptionService - Integration', () => {
     it(
       'should throw NotFoundException when subscription does not exist',
       runWithRollbackTransaction(async () => {
-        await expect(
-          service.findOneOrFail('00000000-0000-0000-0000-000000000000'),
-        ).rejects.toThrow(NotFoundException);
+        await expect(service.findOneOrFail('00000000-0000-0000-0000-000000000000')).rejects.toThrow(NotFoundException);
       }),
     );
   });
@@ -576,7 +570,7 @@ describe('SubscriptionService - Integration', () => {
         });
 
         const result = await service.findAndUpdateSubscriptionByTransaction(
-          updatedTransaction!.transactionId,
+          updatedTransaction.transactionId,
           TransactionStatus.PAID,
         );
 
@@ -614,7 +608,7 @@ describe('SubscriptionService - Integration', () => {
         });
 
         const result = await service.findAndUpdateSubscriptionByTransaction(
-          updatedTransaction!.transactionId,
+          updatedTransaction.transactionId,
           TransactionStatus.FAILED,
         );
 
@@ -633,14 +627,10 @@ describe('SubscriptionService - Integration', () => {
     it(
       'should return null when period not found for transaction',
       runWithRollbackTransaction(async () => {
-        const result = await service.findAndUpdateSubscriptionByTransaction(
-          'TXN-NON-EXISTENT',
-          TransactionStatus.PAID,
-        );
+        const result = await service.findAndUpdateSubscriptionByTransaction('TXN-NON-EXISTENT', TransactionStatus.PAID);
 
         expect(result).toBeNull();
       }),
     );
   });
 });
-

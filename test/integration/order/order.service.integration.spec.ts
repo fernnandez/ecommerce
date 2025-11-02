@@ -1,25 +1,18 @@
+import { INestApplication, NotFoundException } from '@nestjs/common';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import {
-  initializeTransactionalContext,
-  StorageDriver,
-} from 'typeorm-transactional';
 import { AppModule } from '@src/app.module';
-import { Order, OrderStatus, PaymentMethod, OrderOrigin } from '@src/domain/order/entities/order.entity';
-import { Transaction, TransactionStatus } from '@src/domain/order/entities/transaction.entity';
-import { Customer } from '@src/domain/customer/entities/customer.entity';
-import { Cart, CartStatus } from '@src/domain/cart/entities/cart.entity';
-import { Product, ProductType } from '@src/domain/product/entities/product.entity';
 import { CartItem } from '@src/domain/cart/entities/cart-item.entity';
-import { Subscription } from '@src/domain/subscription/entities/subscription.entity';
-import { SubscriptionPeriod } from '@src/domain/subscription/entities/subscription-period.entity';
+import { Cart, CartStatus } from '@src/domain/cart/entities/cart.entity';
+import { Order, OrderOrigin, OrderStatus, PaymentMethod } from '@src/domain/order/entities/order.entity';
+import { Transaction, TransactionStatus } from '@src/domain/order/entities/transaction.entity';
 import { OrderService } from '@src/domain/order/services/order.service';
+import { Subscription } from '@src/domain/subscription/entities/subscription.entity';
+import { ChargeStatus } from '@src/integration/charge/interfaces/charge-provider.interface';
 import { createTestingApp } from '@test/helper/create-testing-app';
 import { runWithRollbackTransaction } from '@test/helper/database/test-transaction';
 import { FixtureHelper } from '@test/helper/fixture-helper';
-import { NotFoundException } from '@nestjs/common';
-import { INestApplication } from '@nestjs/common';
-import { ChargeStatus } from '@src/integration/charge/interfaces/charge-provider.interface';
+import { Repository } from 'typeorm';
+import { StorageDriver, initializeTransactionalContext } from 'typeorm-transactional';
 
 initializeTransactionalContext({ storageDriver: StorageDriver.AUTO });
 
@@ -29,10 +22,8 @@ describe('OrderService - Integration', () => {
   let fixtures: FixtureHelper;
   let orderRepo: Repository<Order>;
   let transactionRepo: Repository<Transaction>;
-  let customerRepo: Repository<Customer>;
   let cartRepo: Repository<Cart>;
   let cartItemRepo: Repository<CartItem>;
-  let productRepo: Repository<Product>;
 
   beforeAll(async () => {
     app = await createTestingApp({
@@ -45,10 +36,8 @@ describe('OrderService - Integration', () => {
     service = app.get<OrderService>(OrderService);
     orderRepo = app.get<Repository<Order>>(getRepositoryToken(Order));
     transactionRepo = app.get<Repository<Transaction>>(getRepositoryToken(Transaction));
-    customerRepo = app.get<Repository<Customer>>(getRepositoryToken(Customer));
     cartRepo = app.get<Repository<Cart>>(getRepositoryToken(Cart));
     cartItemRepo = app.get<Repository<CartItem>>(getRepositoryToken(CartItem));
-    productRepo = app.get<Repository<Product>>(getRepositoryToken(Product));
   });
 
   afterAll(async () => {
@@ -84,11 +73,7 @@ describe('OrderService - Integration', () => {
         savedCart.status = CartStatus.CLOSED;
         await cartRepo.save(savedCart);
 
-        const result = await service.createOrder(
-          customer.id,
-          savedCart.id,
-          PaymentMethod.CARD,
-        );
+        const result = await service.createOrder(customer.id, savedCart.id, PaymentMethod.CARD);
 
         expect(result).toBeDefined();
         expect(result.order).toBeDefined();
@@ -137,11 +122,7 @@ describe('OrderService - Integration', () => {
         savedCart.status = CartStatus.CLOSED;
         await cartRepo.save(savedCart);
 
-        const result = await service.createOrder(
-          customer.id,
-          savedCart.id,
-          PaymentMethod.CARD,
-        );
+        const result = await service.createOrder(customer.id, savedCart.id, PaymentMethod.CARD);
 
         expect(result).toBeDefined();
         expect(result.order).toBeDefined();
@@ -187,18 +168,10 @@ describe('OrderService - Integration', () => {
         await cartRepo.save(savedCart);
 
         // Create first order
-        const firstResult = await service.createOrder(
-          customer.id,
-          savedCart.id,
-          PaymentMethod.CARD,
-        );
+        const firstResult = await service.createOrder(customer.id, savedCart.id, PaymentMethod.CARD);
 
         // Create order again for same cart
-        const secondResult = await service.createOrder(
-          customer.id,
-          savedCart.id,
-          PaymentMethod.PIX,
-        );
+        const secondResult = await service.createOrder(customer.id, savedCart.id, PaymentMethod.PIX);
 
         // Should reuse the same order
         expect(firstResult.order.id).toBe(secondResult.order.id);
@@ -235,11 +208,7 @@ describe('OrderService - Integration', () => {
         await cartRepo.save(savedCart);
 
         // CARD payment method should result in PAID status from charge provider
-        const result = await service.createOrder(
-          customer.id,
-          savedCart.id,
-          PaymentMethod.CARD,
-        );
+        const result = await service.createOrder(customer.id, savedCart.id, PaymentMethod.CARD);
 
         // With CARD, charge provider returns PAID, so order should be CONFIRMED
         expect(result.order.status).toBe(OrderStatus.CONFIRMED);
@@ -274,11 +243,7 @@ describe('OrderService - Integration', () => {
         await cartRepo.save(savedCart);
 
         // PIX payment method should result in CREATED status from charge provider
-        const result = await service.createOrder(
-          customer.id,
-          savedCart.id,
-          PaymentMethod.PIX,
-        );
+        const result = await service.createOrder(customer.id, savedCart.id, PaymentMethod.PIX);
 
         // With PIX, charge provider returns CREATED, so order should be PENDING
         expect(result.order.status).toBe(OrderStatus.PENDING);
@@ -300,11 +265,7 @@ describe('OrderService - Integration', () => {
         const savedCart = await cartRepo.save(cart);
 
         await expect(
-          service.createOrder(
-            '00000000-0000-0000-0000-000000000000',
-            savedCart.id,
-            PaymentMethod.CARD,
-          ),
+          service.createOrder('00000000-0000-0000-0000-000000000000', savedCart.id, PaymentMethod.CARD),
         ).rejects.toThrow(NotFoundException);
       }),
     );
@@ -315,11 +276,7 @@ describe('OrderService - Integration', () => {
         const customer = await fixtures.fixtures.customers.peter();
 
         await expect(
-          service.createOrder(
-            customer.id,
-            '00000000-0000-0000-0000-000000000000',
-            PaymentMethod.CARD,
-          ),
+          service.createOrder(customer.id, '00000000-0000-0000-0000-000000000000', PaymentMethod.CARD),
         ).rejects.toThrow(NotFoundException);
       }),
     );
@@ -340,13 +297,9 @@ describe('OrderService - Integration', () => {
         const savedCart = await cartRepo.save(cart);
 
         // Try to create order with customer2's ID but customer1's cart
-        await expect(
-          service.createOrder(
-            customer2.id,
-            savedCart.id,
-            PaymentMethod.CARD,
-          ),
-        ).rejects.toThrow(NotFoundException);
+        await expect(service.createOrder(customer2.id, savedCart.id, PaymentMethod.CARD)).rejects.toThrow(
+          NotFoundException,
+        );
       }),
     );
   });
@@ -356,7 +309,7 @@ describe('OrderService - Integration', () => {
       'should create recurring order with PAID charge status',
       runWithRollbackTransaction(async () => {
         const customer = await fixtures.fixtures.customers.peter();
-        const amount = 49.90;
+        const amount = 49.9;
 
         const chargeResponse = {
           transactionId: `TXN-RECURRING-${Date.now()}`,
@@ -365,12 +318,7 @@ describe('OrderService - Integration', () => {
           processingTime: 500,
         };
 
-        const result = await service.createRecurringOrder(
-          customer.id,
-          amount,
-          PaymentMethod.CARD,
-          chargeResponse,
-        );
+        const result = await service.createRecurringOrder(customer.id, amount, PaymentMethod.CARD, chargeResponse);
 
         expect(result).toBeDefined();
         expect(result.order).toBeDefined();
@@ -393,7 +341,7 @@ describe('OrderService - Integration', () => {
       'should create recurring order with FAILED charge status',
       runWithRollbackTransaction(async () => {
         const customer = await fixtures.fixtures.customers.mary();
-        const amount = 129.90;
+        const amount = 129.9;
 
         const chargeResponse = {
           transactionId: `TXN-RECURRING-FAILED-${Date.now()}`,
@@ -402,12 +350,7 @@ describe('OrderService - Integration', () => {
           processingTime: 300,
         };
 
-        const result = await service.createRecurringOrder(
-          customer.id,
-          amount,
-          PaymentMethod.CARD,
-          chargeResponse,
-        );
+        const result = await service.createRecurringOrder(customer.id, amount, PaymentMethod.CARD, chargeResponse);
 
         expect(result.order.status).toBe(OrderStatus.FAILED);
         expect(result.transaction.status).toBe(TransactionStatus.FAILED);
@@ -418,7 +361,7 @@ describe('OrderService - Integration', () => {
       'should create recurring order with REFUSED charge status',
       runWithRollbackTransaction(async () => {
         const customer = await fixtures.fixtures.customers.john();
-        const amount = 49.90;
+        const amount = 49.9;
 
         const chargeResponse = {
           transactionId: `TXN-RECURRING-REFUSED-${Date.now()}`,
@@ -427,12 +370,7 @@ describe('OrderService - Integration', () => {
           processingTime: 250,
         };
 
-        const result = await service.createRecurringOrder(
-          customer.id,
-          amount,
-          PaymentMethod.CARD,
-          chargeResponse,
-        );
+        const result = await service.createRecurringOrder(customer.id, amount, PaymentMethod.CARD, chargeResponse);
 
         expect(result.order.status).toBe(OrderStatus.FAILED);
         expect(result.transaction.status).toBe(TransactionStatus.REFUSED);
@@ -443,7 +381,7 @@ describe('OrderService - Integration', () => {
       'should create recurring order with CREATED charge status',
       runWithRollbackTransaction(async () => {
         const customer = await fixtures.fixtures.customers.peter();
-        const amount = 49.90;
+        const amount = 49.9;
 
         const chargeResponse = {
           transactionId: `TXN-RECURRING-CREATED-${Date.now()}`,
@@ -452,12 +390,7 @@ describe('OrderService - Integration', () => {
           processingTime: 100,
         };
 
-        const result = await service.createRecurringOrder(
-          customer.id,
-          amount,
-          PaymentMethod.CARD,
-          chargeResponse,
-        );
+        const result = await service.createRecurringOrder(customer.id, amount, PaymentMethod.CARD, chargeResponse);
 
         expect(result.order.status).toBe(OrderStatus.PENDING);
         expect(result.transaction.status).toBe(TransactionStatus.CREATED);
@@ -477,7 +410,7 @@ describe('OrderService - Integration', () => {
         await expect(
           service.createRecurringOrder(
             '00000000-0000-0000-0000-000000000000',
-            49.90,
+            49.9,
             PaymentMethod.CARD,
             chargeResponse,
           ),
@@ -505,9 +438,7 @@ describe('OrderService - Integration', () => {
     it(
       'should throw NotFoundException when order not found',
       runWithRollbackTransaction(async () => {
-        await expect(
-          service.findOneOrFail('00000000-0000-0000-0000-000000000000'),
-        ).rejects.toThrow(NotFoundException);
+        await expect(service.findOneOrFail('00000000-0000-0000-0000-000000000000')).rejects.toThrow(NotFoundException);
       }),
     );
 
@@ -556,12 +487,7 @@ describe('OrderService - Integration', () => {
       runWithRollbackTransaction(async () => {
         const order = await fixtures.fixtures.orders.pendingJohn();
 
-        const statuses = [
-          OrderStatus.CONFIRMED,
-          OrderStatus.FAILED,
-          OrderStatus.CANCELLED,
-          OrderStatus.PENDING,
-        ];
+        const statuses = [OrderStatus.CONFIRMED, OrderStatus.FAILED, OrderStatus.CANCELLED, OrderStatus.PENDING];
 
         for (const status of statuses) {
           const result = await service.updateStatus(order.id, status);
@@ -601,10 +527,7 @@ describe('OrderService - Integration', () => {
       runWithRollbackTransaction(async () => {
         const transaction = await fixtures.fixtures.transactions.processingJohn();
 
-        const result = await service.updateTransactionStatus(
-          transaction.transactionId,
-          TransactionStatus.PAID,
-        );
+        const result = await service.updateTransactionStatus(transaction.transactionId, TransactionStatus.PAID);
 
         expect(result.status).toBe(TransactionStatus.PAID);
 
@@ -619,9 +542,9 @@ describe('OrderService - Integration', () => {
     it(
       'should throw NotFoundException when transaction not found',
       runWithRollbackTransaction(async () => {
-        await expect(
-          service.updateTransactionStatus('NON-EXISTENT-TXN-ID', TransactionStatus.PAID),
-        ).rejects.toThrow(NotFoundException);
+        await expect(service.updateTransactionStatus('NON-EXISTENT-TXN-ID', TransactionStatus.PAID)).rejects.toThrow(
+          NotFoundException,
+        );
       }),
     );
 
@@ -629,18 +552,18 @@ describe('OrderService - Integration', () => {
       'should update subscription status when transaction is linked to subscription period',
       runWithRollbackTransaction(async () => {
         // Get a subscription with a period that might have a transaction
-        const subscription = await fixtures.fixtures.subscriptions.activeMonthlyJohn();
+
         const order = await fixtures.fixtures.orders.pendingJohn();
 
         // Create a transaction and link it to a subscription period
         const transaction = transactionRepo.create({
           transactionId: `TXN-SUB-UPDATE-${Date.now()}`,
           status: TransactionStatus.PROCESSING,
-          amount: 49.90,
+          amount: 49.9,
           currency: 'BRL',
           message: 'Test transaction',
           processingTime: 500,
-          order: order,
+          order,
         });
         const savedTransaction = await transactionRepo.save(transaction);
 
@@ -648,10 +571,7 @@ describe('OrderService - Integration', () => {
         // No need to manually link transaction to period anymore
 
         // Update transaction status - this should also update subscription
-        await service.updateTransactionStatus(
-          savedTransaction.transactionId,
-          TransactionStatus.PAID,
-        );
+        await service.updateTransactionStatus(savedTransaction.transactionId, TransactionStatus.PAID);
 
         // Verify transaction was updated
         const updatedTransaction = await transactionRepo.findOne({
@@ -664,18 +584,17 @@ describe('OrderService - Integration', () => {
     it(
       'should update to all valid transaction statuses',
       runWithRollbackTransaction(async () => {
-        const customer = await fixtures.fixtures.customers.peter();
         const order = await fixtures.fixtures.orders.pendingJohn();
 
         // Create a transaction
         const transaction = transactionRepo.create({
           transactionId: `TXN-STATUS-TEST-${Date.now()}`,
           status: TransactionStatus.CREATED,
-          amount: 99.90,
+          amount: 99.9,
           currency: 'BRL',
           message: 'Test transaction',
           processingTime: 500,
-          order: order,
+          order,
         });
         const savedTransaction = await transactionRepo.save(transaction);
 
@@ -687,14 +606,10 @@ describe('OrderService - Integration', () => {
         ];
 
         for (const status of statuses) {
-          const result = await service.updateTransactionStatus(
-            savedTransaction.transactionId,
-            status,
-          );
+          const result = await service.updateTransactionStatus(savedTransaction.transactionId, status);
           expect(result.status).toBe(status);
         }
       }),
     );
   });
 });
-

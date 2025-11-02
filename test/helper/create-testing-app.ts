@@ -1,10 +1,10 @@
-import { INestApplication, Logger, ValidationPipe } from '@nestjs/common';
+import { INestApplication, Logger, ModuleMetadata, ValidationPipe } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 
 export interface CreateTestingAppOptions {
-  imports?: any[];
-  providers?: any[];
-  controllers?: any[];
+  imports?: ModuleMetadata['imports'];
+  providers?: ModuleMetadata['providers'];
+  controllers?: ModuleMetadata['controllers'];
   globalPipes?: boolean;
   enableLogs?: boolean;
 }

@@ -55,7 +55,7 @@ export class ProductService {
   }
 
   async remove(id: string): Promise<void> {
-    const product = await this.findOneOrFail(id);
+    const _product = await this.findOneOrFail(id);
     await this.productRepository.softDelete(id);
   }
 }

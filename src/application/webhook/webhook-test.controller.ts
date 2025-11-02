@@ -3,7 +3,6 @@ import { Transaction } from '@domain/order/entities/transaction.entity';
 import { Body, Controller, HttpCode, HttpStatus, NotFoundException, Post } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Public } from '@src/infra/decorator/public.decorator';
 import { Repository } from 'typeorm';
 import { TestWebhookDto } from './dto/test-webhook.dto';
 import { WebhookPayloadDto } from './dto/webhook-payload.dto';

@@ -1,4 +1,4 @@
-import { OrderStatus } from '@domain/order/entities/order.entity';
+import { Order, OrderStatus } from '@domain/order/entities/order.entity';
 import { Transaction, TransactionStatus } from '@domain/order/entities/transaction.entity';
 import { OrderService } from '@domain/order/services/order.service';
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
@@ -132,7 +132,7 @@ export class WebhookService {
   }
 
   private async handlePaymentEvent(
-    order: any,
+    order: Order,
     transaction: Transaction,
     transactionStatus: TransactionStatus,
     event: WebhookEventType,

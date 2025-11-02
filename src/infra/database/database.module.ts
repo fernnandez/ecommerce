@@ -16,6 +16,7 @@ import { addTransactionalDataSource } from 'typeorm-transactional';
         }
         return options;
       },
+      // eslint-disable-next-line @typescript-eslint/require-await
       async dataSourceFactory(options) {
         if (!options) {
           throw new Error('Invalid options passed');

@@ -1,13 +1,14 @@
+import { User } from '@domain/user/entities/user.entity';
 import { Module } from '@nestjs/common';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 import { JwtModule, JwtModuleOptions } from '@nestjs/jwt';
-import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { User } from '@domain/user/entities/user.entity';
-import { JwtStrategy } from './strategies/jwt.strategy';
+import { StringValue } from 'ms';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RolesGuard } from './guards/roles.guard';
 import { WebhookAuthGuard } from './guards/webhook-auth.guard';
+import { JwtStrategy } from './strategies/jwt.strategy';
 
 @Module({
   imports: [
@@ -16,11 +17,11 @@ import { WebhookAuthGuard } from './guards/webhook-auth.guard';
       inject: [ConfigService],
       useFactory: (configService: ConfigService): JwtModuleOptions => {
         const secret = configService.get<string>('jwt.secret');
-        const expiresIn = configService.get<string>('jwt.expiresIn') || '24h';
+        const expiresIn = configService.get<StringValue>('jwt.expiresIn') || '24h';
         return {
           secret,
           signOptions: {
-            expiresIn: expiresIn as any,
+            expiresIn,
           },
         };
       },
@@ -44,4 +45,3 @@ import { WebhookAuthGuard } from './guards/webhook-auth.guard';
   exports: [JwtModule, JwtAuthGuard, RolesGuard, WebhookAuthGuard],
 })
 export class AuthModule {}
-

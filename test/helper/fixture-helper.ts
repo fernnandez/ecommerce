@@ -1,15 +1,15 @@
 import { INestApplication } from '@nestjs/common';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { User } from '@src/domain/user/entities/user.entity';
+import { Cart, CartStatus } from '@src/domain/cart/entities/cart.entity';
 import { Customer } from '@src/domain/customer/entities/customer.entity';
-import { Product } from '@src/domain/product/entities/product.entity';
-import { Cart } from '@src/domain/cart/entities/cart.entity';
-import { Subscription } from '@src/domain/subscription/entities/subscription.entity';
+import { Order, OrderStatus } from '@src/domain/order/entities/order.entity';
 import { Transaction, TransactionStatus } from '@src/domain/order/entities/transaction.entity';
-import { Order } from '@src/domain/order/entities/order.entity';
+import { Product } from '@src/domain/product/entities/product.entity';
+import { Subscription } from '@src/domain/subscription/entities/subscription.entity';
+import { User } from '@src/domain/user/entities/user.entity';
 import * as bcrypt from 'bcrypt';
 import request from 'supertest';
+import { FindOptionsWhere, Repository } from 'typeorm';
 
 /**
  * Helper to access fixtures loaded in the test database
@@ -83,7 +83,7 @@ export class FixtureHelper {
     const cart = await this.cartRepo.findOne({
       where: {
         customer: { id: customer.id },
-        status: status as any,
+        status: status as CartStatus,
       },
       relations: ['items', 'items.product'],
     });
@@ -98,17 +98,15 @@ export class FixtureHelper {
   async getToken(userEmail: string, password: string = 'password123'): Promise<string> {
     // First try to login (if password is correct)
     try {
-      const loginRes = await request(this.app.getHttpServer())
-        .post('/auth/login')
-        .send({
-          email: userEmail,
-          password,
-        });
+      const loginRes = await request(this.app.getHttpServer()).post('/auth/login').send({
+        email: userEmail,
+        password,
+      });
 
       if (loginRes.status === 200) {
         return loginRes.body.accessToken;
       }
-    } catch (error) {
+    } catch {
       // If login fails, the password in fixtures might be hashed
       // We'll need to check the actual password hash or reset it
     }
@@ -206,11 +204,11 @@ export class FixtureHelper {
    */
   async getOrder(customerEmail: string, status?: string): Promise<Order> {
     const customer = await this.getCustomer(customerEmail);
-    const where: any = { customer: { id: customer.id } };
+    const where: FindOptionsWhere<Order> = { customer: { id: customer.id } };
     if (status) {
-      where.status = status;
+      where.status = status as OrderStatus;
     }
-    
+
     const order = await this.orderRepo.findOne({
       where,
       relations: ['customer', 'cart', 'transactions'],
@@ -218,7 +216,9 @@ export class FixtureHelper {
     });
 
     if (!order) {
-      throw new Error(`Order fixture not found for customer: ${customerEmail}${status ? ` with status: ${status}` : ''}`);
+      throw new Error(
+        `Order fixture not found for customer: ${customerEmail}${status ? ` with status: ${status}` : ''}`,
+      );
     }
 
     return order;
@@ -256,4 +256,3 @@ export class FixtureHelper {
     return await this.transactionRepo.save(transaction);
   }
 }
-
