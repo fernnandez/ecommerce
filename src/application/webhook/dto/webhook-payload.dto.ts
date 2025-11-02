@@ -9,6 +9,10 @@ export enum WebhookEventType {
 }
 
 class WebhookMetadataDto {
+  @ApiProperty({ description: 'Cart ID (optional)', example: 'cart_5557', required: false })
+  @IsString()
+  @IsOptional()
+  cartId?: string;
 
   @ApiProperty({ description: 'Subscription ID (optional)', example: 'uuid', required: false })
   @IsUUID()

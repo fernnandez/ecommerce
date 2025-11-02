@@ -1,15 +1,37 @@
-import { BadRequestException } from '@nestjs/common';
 import { OrderStatus } from '@domain/order/entities/order.entity';
 import { Transaction, TransactionStatus } from '@domain/order/entities/transaction.entity';
 import { OrderService } from '@domain/order/services/order.service';
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Transactional } from 'typeorm-transactional';
 import { WebhookEventType, WebhookPayloadDto } from './dto/webhook-payload.dto';
 
 @Injectable()
 export class WebhookService {
   private readonly logger = new Logger(WebhookService.name);
-  private readonly MAX_EVENT_AGE_HOURS = 24; // Máximo de 24 horas para processar um evento antigo
+
+  private readonly statusTransitionValidator: Record<TransactionStatus, TransactionStatus[]> = {
+    [TransactionStatus.PAID]: [TransactionStatus.PAID],
+    [TransactionStatus.REFUSED]: [TransactionStatus.REFUSED],
+    [TransactionStatus.PROCESSING]: [
+      TransactionStatus.PAID,
+      TransactionStatus.FAILED,
+      TransactionStatus.REFUSED,
+      TransactionStatus.PROCESSING,
+    ],
+    [TransactionStatus.CREATED]: [
+      TransactionStatus.PROCESSING,
+      TransactionStatus.PAID,
+      TransactionStatus.FAILED,
+      TransactionStatus.REFUSED,
+      TransactionStatus.CREATED,
+    ],
+    [TransactionStatus.FAILED]: [
+      TransactionStatus.PROCESSING,
+      TransactionStatus.PAID,
+      TransactionStatus.FAILED,
+      TransactionStatus.REFUSED,
+    ],
+  };
 
   constructor(private readonly orderService: OrderService) {}
 
@@ -18,27 +40,22 @@ export class WebhookService {
     this.logger.log(`Processing webhook event: ${payload.event} for transaction: ${payload.transactionId}`);
 
     try {
-      // Passo 1: Buscar a transaction
       const transaction = await this.orderService.findTransactionByTransactionId(payload.transactionId);
 
       if (!transaction) {
         throw new NotFoundException(`Transaction ${payload.transactionId} not found`);
       }
 
-      // Passo 2: Buscar o order (se não existir, lança 404)
       const order = await this.orderService.findOneOrFail(payload.orderId);
 
-      // Passo 3: Validar que o order pertence à transaction
       if (transaction.order.id !== order.id) {
         throw new BadRequestException(
           `Transaction ${payload.transactionId} does not belong to order ${payload.orderId}`,
         );
       }
 
-      // Passo 4: Validar consistência dos dados (após confirmar que order e transaction existem e estão relacionados)
       this.validatePayloadConsistency(payload, transaction);
 
-      // Passo 5: Verificar idempotência e validar transição de status
       const expectedStatus = this.getExpectedTransactionStatus(payload.event);
 
       if (transaction.status === expectedStatus) {
@@ -48,7 +65,6 @@ export class WebhookService {
         return;
       }
 
-      // Proteger contra downgrade de status (não permitir mudanças para status pior)
       if (this.isStatusDowngrade(transaction.status, expectedStatus)) {
         this.logger.warn(
           `Attempted to downgrade transaction ${payload.transactionId} from ${transaction.status} to ${expectedStatus}. This is not allowed. Skipping.`,
@@ -56,20 +72,7 @@ export class WebhookService {
         return;
       }
 
-      // Passo 6: Processar o evento baseado no tipo
-      switch (payload.event) {
-        case WebhookEventType.PAYMENT_SUCCESS:
-          await this.handlePaymentSuccess(order, transaction, payload);
-          break;
-        case WebhookEventType.PAYMENT_FAILED:
-          await this.handlePaymentFailed(order, transaction, payload);
-          break;
-        case WebhookEventType.PAYMENT_PENDING:
-          await this.handlePaymentPending(order, transaction, payload);
-          break;
-        default:
-          this.logger.warn(`Unknown webhook event type: ${payload.event}`);
-      }
+      await this.handlePaymentEvent(order, transaction, expectedStatus, payload.event);
 
       this.logger.log(`Webhook event ${payload.event} processed successfully for transaction ${payload.transactionId}`);
     } catch (error) {
@@ -90,10 +93,6 @@ export class WebhookService {
     return mapping[event];
   }
 
-  /**
-   * Valida se os dados do payload são consistentes com a transaction existente
-   * Nota: A validação de orderId e customerId já foi feita antes (order existe e pertence à transaction)
-   */
   private validatePayloadConsistency(payload: WebhookPayloadDto, transaction: Transaction): void {
     // Validar amount com tolerância de 0.01 para diferenças de arredondamento
     const amountDifference = Math.abs(Number(payload.amount) - Number(transaction.amount));
@@ -118,76 +117,34 @@ export class WebhookService {
     }
   }
 
-  /**
-   * Verifica se uma mudança de status representa um downgrade (mudança para um status pior)
-   * Hierarquia de status: PAID > PROCESSING > CREATED > FAILED/REFUSED
-   */
   private isStatusDowngrade(currentStatus: TransactionStatus, newStatus: TransactionStatus): boolean {
-    // Se já está PAID, não pode voltar para outro status
-    if (currentStatus === TransactionStatus.PAID) {
-      return newStatus !== TransactionStatus.PAID;
-    }
-
-    // Se está em FAILED/REFUSED, transições para qualquer outro status são permitidas (podem ser upgrades)
-    if (currentStatus === TransactionStatus.FAILED || currentStatus === TransactionStatus.REFUSED) {
-      return false;
-    }
-
-    // Transições para FAILED/REFUSED são sempre permitidas (podem acontecer a qualquer momento)
-    if (newStatus === TransactionStatus.FAILED || newStatus === TransactionStatus.REFUSED) {
-      return false;
-    }
-
-    // Se está PROCESSING e tenta ir para CREATED, é downgrade
-    if (currentStatus === TransactionStatus.PROCESSING && newStatus === TransactionStatus.CREATED) {
-      return true;
-    }
-
-    // Se está PROCESSING e tenta ir para PAID, não é downgrade (é upgrade)
-    if (currentStatus === TransactionStatus.PROCESSING && newStatus === TransactionStatus.PAID) {
-      return false;
-    }
-
-    // Se está CREATED e tenta ir para PROCESSING ou PAID, não é downgrade (é upgrade)
-    if (currentStatus === TransactionStatus.CREATED) {
-      return false;
-    }
-
-    // Por padrão, não considerar como downgrade para permitir flexibilidade
-    return false;
+    const allowedStatuses = this.statusTransitionValidator[currentStatus];
+    return !allowedStatuses.includes(newStatus);
   }
 
-  private async handlePaymentSuccess(order: any, transaction: Transaction, payload: WebhookPayloadDto): Promise<void> {
-    // updateTransactionStatus já atualiza subscriptions automaticamente
-    await this.orderService.updateTransactionStatus(transaction.transactionId, TransactionStatus.PAID);
-    await this.orderService.updateStatus(order.id, OrderStatus.CONFIRMED);
-
-    this.logger.log(
-      `Payment success processed for order ${order.id} and transaction ${transaction.transactionId}. Subscriptions updated automatically.`,
-    );
+  private getOrderStatusForEvent(event: WebhookEventType): OrderStatus | null {
+    const mapping: Record<WebhookEventType, OrderStatus | null> = {
+      [WebhookEventType.PAYMENT_SUCCESS]: OrderStatus.CONFIRMED,
+      [WebhookEventType.PAYMENT_FAILED]: OrderStatus.FAILED,
+      [WebhookEventType.PAYMENT_PENDING]: OrderStatus.PENDING,
+    };
+    return mapping[event];
   }
 
-  private async handlePaymentFailed(order: any, transaction: Transaction, payload: WebhookPayloadDto): Promise<void> {
-    // updateTransactionStatus já atualiza subscriptions automaticamente
-    await this.orderService.updateTransactionStatus(transaction.transactionId, TransactionStatus.FAILED);
-    await this.orderService.updateStatus(order.id, OrderStatus.FAILED);
+  private async handlePaymentEvent(
+    order: any,
+    transaction: Transaction,
+    transactionStatus: TransactionStatus,
+    event: WebhookEventType,
+  ): Promise<void> {
+    await this.orderService.updateTransactionStatus(transaction.transactionId, transactionStatus);
+
+    const orderStatus = this.getOrderStatusForEvent(event);
+
+    await this.orderService.updateStatus(order.id, orderStatus);
 
     this.logger.log(
-      `Payment failed processed for order ${order.id} and transaction ${transaction.transactionId}. Subscriptions updated automatically.`,
-    );
-  }
-
-  private async handlePaymentPending(order: any, transaction: Transaction, payload: WebhookPayloadDto): Promise<void> {
-    // updateTransactionStatus já atualiza subscriptions automaticamente
-    await this.orderService.updateTransactionStatus(transaction.transactionId, TransactionStatus.PROCESSING);
-
-    // Só atualiza order para PENDING se ainda não estiver confirmado
-    if (order.status !== OrderStatus.CONFIRMED) {
-      await this.orderService.updateStatus(order.id, OrderStatus.PENDING);
-    }
-
-    this.logger.log(
-      `Payment pending processed for order ${order.id} and transaction ${transaction.transactionId}. Subscriptions updated automatically.`,
+      `Payment ${event} processed for order ${order.id} and transaction ${transaction.transactionId}. Subscriptions updated automatically.`,
     );
   }
 }

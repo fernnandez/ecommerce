@@ -315,7 +315,7 @@ describe('WebhookController - Integration (HTTP)', () => {
     );
 
     it(
-      'should validate metadata.cartId as UUID',
+      'should validate metadata.subscriptionId as UUID',
       runWithRollbackTransaction(async () => {
         const order = await fixtures.fixtures.orders.pendingJohn();
         const transaction = await fixtures.fixtures.transactions.processingJohn();
@@ -338,6 +338,34 @@ describe('WebhookController - Integration (HTTP)', () => {
           .post(`${baseUrl}/payment`)
           .send(webhookPayload)
           .expect(400);
+      }),
+    );
+
+    it(
+      'should accept valid metadata with cartId and subscriptionId',
+      runWithRollbackTransaction(async () => {
+        const order = await fixtures.fixtures.orders.pendingJohn();
+        const transaction = await fixtures.fixtures.transactions.processingJohn();
+
+        const webhookPayload = {
+          event: WebhookEventType.PAYMENT_SUCCESS,
+          transactionId: transaction.transactionId,
+          orderId: order.id,
+          customerId: order.customer.id,
+          amount: parseFloat(order.total.toString()),
+          currency: 'BRL',
+          paymentMethod: order.paymentMethod,
+          timestamp: new Date().toISOString(),
+          metadata: {
+            cartId: 'cart_5557',
+            subscriptionId: order.id, // valid UUID from order
+          },
+        };
+
+        await request(app.getHttpServer())
+          .post(`${baseUrl}/payment`)
+          .send(webhookPayload)
+          .expect(200);
       }),
     );
 
