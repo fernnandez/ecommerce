@@ -3,6 +3,7 @@ import { Cart, CartStatus } from '@domain/cart/entities/cart.entity';
 import { OrderStatus, PaymentMethod } from '@domain/order/entities/order.entity';
 import { Transaction } from '@domain/order/entities/transaction.entity';
 import { OrderService } from '@domain/order/services/order.service';
+import { Product, ProductType } from '@domain/product/entities/product.entity';
 import { BadRequestException, Inject, Injectable, NotFoundException, forwardRef } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { CustomerService } from '@src/domain/customer/services/customer.service';
@@ -72,7 +73,6 @@ export class CartService {
 
     const savedCart = await this.cartRepository.save(cart);
 
-    // Busca o cart recém criado com todas as relações necessárias
     const cartWithRelations = await this.findCartWithRelations({ id: savedCart.id });
 
     if (!cartWithRelations) {
@@ -140,60 +140,67 @@ export class CartService {
 
   async addItem(customerId: string, productId: string, quantity: number = 1): Promise<CartResponseDto> {
     const cart = await this.getOrCreateOpenCartEntity(customerId);
-
     const product = await this.productService.findOneOrFail(productId);
 
-    if (product.type === 'subscription' && !product.periodicity) {
-      throw new BadRequestException(
-        'Product subscription must have periodicity defined. Please configure periodicity for this product.',
-      );
-    }
+    this.validateProductForCart(product, quantity, cart);
 
-    if (product.type === 'single' && product.periodicity) {
-      throw new BadRequestException('Single products cannot have periodicity');
-    }
-
-    if (product.type === 'subscription' && quantity > 1) {
-      throw new BadRequestException('Subscription products can only have quantity of 1');
-    }
-
-    // Busca item existente diretamente no array de items já carregado
     const existingItem = cart.items?.find(item => item.product?.id === productId);
 
     if (existingItem) {
-      if (product.type === 'subscription') {
-        throw new BadRequestException(
-          'Subscription product already exists in cart. Each subscription can only be added once.',
-        );
-      }
-
-      existingItem.quantity += quantity;
-      await this.cartItemRepository.save(existingItem);
-      // Atualiza o array local para refletir a mudança
-      cart.items = cart.items || [];
+      await this.updateExistingCartItem(existingItem, quantity);
     } else {
-      const cartItem = this.cartItemRepository.create({
-        cart,
-        product,
-        quantity: product.type === 'subscription' ? 1 : quantity,
-        price: product.price,
-        periodicity: product.periodicity,
-      });
-      const savedItem = await this.cartItemRepository.save(cartItem);
-      // Adiciona o item ao array local para evitar query adicional
-      cart.items = [...(cart.items || []), savedItem];
+      await this.createNewCartItem(cart, product, quantity);
     }
 
     await this.updateCartTotal(cart.id);
 
-    // Recarrega o cart para garantir dados atualizados (total e items)
     const updatedCart = await this.findCartWithRelations({ id: cart.id });
-
     if (!updatedCart) {
       throw new NotFoundException('Failed to retrieve updated cart');
     }
 
     return this.mapCartToResponse(updatedCart);
+  }
+
+  private validateProductForCart(product: Product, quantity: number, cart: Cart): void {
+    if (product.type === ProductType.SUBSCRIPTION && !product.periodicity) {
+      throw new BadRequestException(
+        'Product subscription must have periodicity defined. Please configure periodicity for this product.',
+      );
+    }
+
+    if (product.type === ProductType.SINGLE && product.periodicity) {
+      throw new BadRequestException('Single products cannot have periodicity');
+    }
+
+    if (product.type === ProductType.SUBSCRIPTION && quantity > 1) {
+      throw new BadRequestException('Subscription products can only have quantity of 1');
+    }
+
+    const existingItem = cart.items?.find(item => item.product?.id === product.id);
+    if (existingItem && product.type === ProductType.SUBSCRIPTION) {
+      throw new BadRequestException(
+        'Subscription product already exists in cart. Each subscription can only be added once.',
+      );
+    }
+  }
+
+  private async updateExistingCartItem(item: CartItem, quantity: number): Promise<void> {
+    item.quantity += quantity;
+    await this.cartItemRepository.save(item);
+  }
+
+  private async createNewCartItem(cart: Cart, product: Product, quantity: number): Promise<void> {
+    const cartItem = this.cartItemRepository.create({
+      cart,
+      product,
+      quantity: product.type === ProductType.SUBSCRIPTION ? 1 : quantity,
+      price: product.price,
+      periodicity: product.periodicity,
+    });
+
+    const savedItem = await this.cartItemRepository.save(cartItem);
+    cart.items = [...(cart.items || []), savedItem];
   }
 
   async removeItem(customerId: string, itemId: string): Promise<CartResponseDto> {
