@@ -47,6 +47,10 @@ API completa para gerenciamento de e-commerce com suporte a produtos, carrinho d
   - Abrir/fechar carrinho
   - Adicionar/remover itens
   - Cálculo automático de total
+  - **Pagamento com Cartão**: Ao fechar um carrinho com método de pagamento `card`, o resultado é determinado aleatoriamente para fins de simulação:
+    - 60% de chance: Pagamento aprovado na hora (status `PAID`)
+    - 20% de chance: Pagamento pendente (status `PENDING`, aguardando webhook)
+    - 20% de chance: Pagamento falhou (status `FAILED`)
 
 - **Pedidos**
   - Criação automática no checkout
