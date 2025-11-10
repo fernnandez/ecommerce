@@ -96,7 +96,6 @@ export class FixtureHelper {
    * Uses default password from fixtures
    */
   async getToken(userEmail: string, password: string = 'password123'): Promise<string> {
-    // First try to login (if password is correct)
     try {
       const loginRes = await request(this.app.getHttpServer()).post('/auth/login').send({
         email: userEmail,
@@ -106,23 +105,16 @@ export class FixtureHelper {
       if (loginRes.status === 200) {
         return loginRes.body.accessToken;
       }
-    } catch {
-      // If login fails, the password in fixtures might be hashed
-      // We'll need to check the actual password hash or reset it
-    }
+    } catch {}
 
-    // If login failed, the password in fixtures is hashed
-    // Get the user and check if we need to update password
     const user = await this.getUser(userEmail);
     const isPasswordCorrect = await bcrypt.compare(password, user.password);
 
     if (!isPasswordCorrect) {
-      // Update user password to allow login
       const hashedPassword = await bcrypt.hash(password, 10);
       await this.userRepo.update(user.id, { password: hashedPassword });
     }
 
-    // Try login again
     const loginRes = await request(this.app.getHttpServer())
       .post('/auth/login')
       .send({

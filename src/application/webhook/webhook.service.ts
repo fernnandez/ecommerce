@@ -94,7 +94,6 @@ export class WebhookService {
   }
 
   private validatePayloadConsistency(payload: WebhookPayloadDto, transaction: Transaction): void {
-    // Validar amount com tolerância de 0.01 para diferenças de arredondamento
     const amountDifference = Math.abs(Number(payload.amount) - Number(transaction.amount));
     if (amountDifference > 0.01) {
       throw new BadRequestException(
@@ -102,14 +101,12 @@ export class WebhookService {
       );
     }
 
-    // Validar currency
     if (payload.currency !== transaction.currency) {
       throw new BadRequestException(
         `Currency mismatch: payload has ${payload.currency} but transaction has ${transaction.currency}`,
       );
     }
 
-    // Validar que o customerId do payload corresponde ao customer do order
     if (payload.customerId !== transaction.order.customer.id) {
       throw new BadRequestException(
         `Customer ID mismatch: payload has ${payload.customerId} but order belongs to customer ${transaction.order.customer.id}`,

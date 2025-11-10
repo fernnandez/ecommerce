@@ -49,7 +49,6 @@ export class HealthController {
     let responseTime: number | undefined;
 
     try {
-      // Verifica conexão com o banco de dados
       await this.dataSource.query('SELECT 1');
       databaseStatus = 'connected';
       responseTime = Date.now() - startTime;
@@ -69,7 +68,6 @@ export class HealthController {
       },
     };
 
-    // Retorna 503 se o serviço estiver unhealthy
     if (status === 'error') {
       throw new HttpException(response, HttpStatus.SERVICE_UNAVAILABLE);
     }

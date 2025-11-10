@@ -11,7 +11,7 @@ export class WebhookController {
   constructor(private readonly webhookService: WebhookService) {}
 
   @Post('payment')
-  @Public() // Bypass JWT auth, usa apenas WebhookAuthGuard
+  @Public()
   @UseGuards(WebhookAuthGuard)
   @HttpCode(HttpStatus.OK)
   @ApiSecurity('webhook-secret')
@@ -41,4 +41,3 @@ export class WebhookController {
     return { success: true };
   }
 }
-

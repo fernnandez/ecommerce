@@ -214,7 +214,6 @@ export class CartService {
       throw new NotFoundException('Open cart not found');
     }
 
-    // Busca item no array já carregado ao invés de fazer query adicional
     const item = cart.items?.find(item => item.id === itemId);
 
     if (!item) {
@@ -265,7 +264,6 @@ export class CartService {
       throw new NotFoundException('Cart not found');
     }
 
-    // Se já está fechado, retorna diretamente sem query adicional
     if (cart.status === CartStatus.CLOSED) {
       return this.mapCartToResponse(cart);
     }
@@ -281,7 +279,6 @@ export class CartService {
     cart.status = CartStatus.CLOSED;
     await this.cartRepository.save(cart);
 
-    // Recarrega para garantir dados atualizados (status mudou)
     const updatedCart = await this.findCartWithRelations({ id: cart.id });
 
     if (!updatedCart) {

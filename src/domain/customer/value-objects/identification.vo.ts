@@ -32,7 +32,6 @@ export class Identification {
     let sum = 0;
     let remainder: number;
 
-    // Verifica primeiro dígito verificador
     for (let i = 1; i <= 9; i++) {
       sum += parseInt(cpf.substring(i - 1, i)) * (11 - i);
     }
@@ -41,7 +40,6 @@ export class Identification {
     if (remainder === 10 || remainder === 11) remainder = 0;
     if (remainder !== parseInt(cpf.substring(9, 10))) return false;
 
-    // Verifica segundo dígito verificador
     sum = 0;
     for (let i = 1; i <= 10; i++) {
       sum += parseInt(cpf.substring(i - 1, i)) * (12 - i);
@@ -59,10 +57,7 @@ export class Identification {
   }
 
   toString(): string {
-    return this.value.replace(
-      /(\d{3})(\d{3})(\d{3})(\d{2})/,
-      '$1.$2.$3-$4',
-    );
+    return this.value.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
   }
 
   equals(other: Identification): boolean {
@@ -73,4 +68,3 @@ export class Identification {
     return new Identification(value);
   }
 }
-

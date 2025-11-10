@@ -14,8 +14,8 @@ import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
     PassportModule.register({ defaultStrategy: 'jwt' }),
     ThrottlerModule.forRoot([
       {
-        ttl: 60000, // 1 minuto
-        limit: 100, // 100 requisições por minuto por IP
+        ttl: 60000,
+        limit: 100,
       },
     ]),
     ApplicationModule,
